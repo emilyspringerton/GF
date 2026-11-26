@@ -1,5 +1,15 @@
 ## 2026-11-26
 
+- **docs(gf): the push blockers are closed and both repos are synced.** The three `docs/QUESTIONS.md` entries that said `git push`
+  failed with `could not read Username for 'https://github.com'` were true when written and were the only record of the blocker.
+  The box's SSH key already authenticates as `emilyspringerton`, so both `origin` remotes moved from HTTPS to SSH and everything
+  local went up: GF `master` through `2a16ef6` (G1, G2/S1, G3, V1, V2, V3 and the docs commit) and PARENA `main` through
+  `a5d132a` (REDGARDEN camera + 460 palette). The entries now say resolved, with the hashes, rather than being deleted -- the
+  history of why ten commits sat on the box is the useful part. No founder action is needed and no token is required; future
+  pushes just work over SSH. Verified: `bash scripts/gf_test.sh` green (parity 40/2,223 checkpoints worst 5.00e-7, engine 73+73,
+  soak, survival 31, router 28, modes 18, portals 45, voxworld 16, construct 27), and `git status -sb` clean against
+  `origin/master` in GF and `origin/main` in PARENA, with `--all` and `--tags` dry runs reporting "Everything up-to-date" in both.
+
 - **feat(gf): V3 CONSTRUCT, a stream's own voxworld with one bot per viewer (`construct_test` 27, `modes_test` 18).**
   Founder: *"we need the construct set up such that if we are oauthed into TWITCH via IDUNA and WOTAN then we can have a
   stream powered construct where it spawns in bots for every viewer in my stream"*. Mode id 4 is that game side: it starts

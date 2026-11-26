@@ -2,13 +2,12 @@
 
 Agents: add a line per question: date, task ID, the question, what you did instead. The founder answers inline.
 
-- 2026-11-26 · G1 · **GitHub push credentials are missing on this box.** `gh auth status` reports no login and `git push` has no
-  credential helper, so `cb40a46` (G1, suite green) is committed locally but not pushed. Please push it, or give the agent a token.
-  Nothing else in G1 is blocked; the work and its test are in the commit.
+- 2026-11-26 · G1 · ~~**GitHub push credentials are missing on this box.**~~ **Resolved the same day, no founder action needed.**
+  `git push` over HTTPS had no credential helper, but this box's SSH key authenticates as `emilyspringerton`, so `origin` now
+  uses `git@github.com:emilyspringerton/GF.git` and `cb40a46` is pushed.
 
-- 2026-11-26 · G2/G3 · **Still no push credentials.** `git push origin master` fails with `could not read Username for
-  'https://github.com'`; `58f83b1` (G2, S1) and `edadd8f` (G3) are local only, suite green. Same ask as the G1 line: a token, or
-  push the three commits.
+- 2026-11-26 · G2/G3 · ~~**Still no push credentials.**~~ **Resolved the same day.** Same fix as the G1 line: `58f83b1` (G2,
+  S1) and `edadd8f` (G3) are pushed over the SSH `origin`. Keep using SSH here; HTTPS has no helper.
 
 - 2026-11-26 · G2/G3 · **Where does in-game NOCK level editing belong?** The NOCK server and its browser editor are in GF
   (`tools/local_nock.prn`, `tools/nock_editor.html`, `levels/*.json`), and Gary's C layer already has the custom-level scene and
@@ -31,7 +30,6 @@ Agents: add a line per question: date, task ID, the question, what you did inste
   OG tree (`04967da`) and need a ground-height hook in the physics path (E3-sized). V4/V5 are scoped in the plan but not
   started. Which do you want the construct to be: the 460 city it has now, or the OG terrain first?
 
-- 2026-11-26 · V1-V3 · **Push is still blocked, now in two repos.** GF has `06c7cca` (V1), `8bed6d6` (V2), `c3886a8` (V3)
-  and the docs commit on top, suite green; PARENA has `a5d132a` (REDGARDEN camera + 460 palette, 17/17) on `main`. Both
-  `git push` calls fail with `could not read Username for 'https://github.com'`. Same ask as the earlier lines: a token or
-  a push from a box that has one.
+- 2026-11-26 · V1-V3 · ~~**Push is still blocked, now in two repos.**~~ **Resolved the same day, both repos synced.** GF is
+  pushed through `2a16ef6` (V1 `06c7cca`, V2 `8bed6d6`, V3 `c3886a8`, docs on top) and PARENA `main` through `a5d132a`
+  (REDGARDEN camera + 460 palette) after switching both `origin` remotes from HTTPS to SSH. No token is needed.
