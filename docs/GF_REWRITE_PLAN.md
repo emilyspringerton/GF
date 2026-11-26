@@ -324,7 +324,7 @@ a time with the founder.
 ## 8. Order of work (take the first open one)
 
 Milestone 1, **one game, three modes** (offline):
-- [ ] G1 · [ ] G2 · [ ] S1 · [ ] G3 · [ ] M1 · [ ] M2 · [ ] G4 · [ ] G5/M3 · [ ] M4 · [ ] P1 (field only) · [ ] E5 · [ ] A2
+- [x] G1 (`cb40a46`) · [ ] G2 · [ ] S1 · [ ] G3 · [ ] M1 · [ ] M2 · [ ] G4 · [ ] G5/M3 · [ ] M4 · [ ] P1 (field only) · [ ] E5 · [ ] A2
 
 Milestone 2, **native desktop**:
 - [ ] E0 (in PARENA) · [ ] E1 · [ ] E2 · [ ] E4 · [ ] A3
