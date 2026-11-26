@@ -1,5 +1,6 @@
 # gf/gf.modules -- the unified GF build: the 460 engine once, every mode beside it, and the router that owns the mod hooks.
-# The arena (parity) and SURVIVAL-only builds stay in arena.modules / survival.modules; this is the game the menu will start.
+# arena.modules stays as the parity build (no router, no modes); this is the game the menu starts, and it is the only
+# SURVIVAL build too (gf/survival.modules is gone -- a mode is switched at runtime now, not at build time).
 gf/engine/sp_mem.prn
 gf/engine/sp_fields.prn
 gf/engine/sp_map.prn

@@ -22,6 +22,7 @@ async function boot() {
   const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), {});
   const x = instance.exports;
   x.sp_init();
+  x.gf_mode_set(1);   // G2/S1: the unified build boots into the arena; SURVIVAL is mode 1
   let now = 1000;
   const dv = () => new DataView(x.memory.buffer);
   return {

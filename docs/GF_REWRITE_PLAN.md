@@ -99,7 +99,8 @@ export PATH=$HOME/.local/bin:$PATH
 cd GF && scripts/gf_test.sh      # parity / engine / soak / survival: all must pass
 ```
 
-`scripts/gf_build.sh <manifest> <out.wasm>` builds one module (`gf/arena.modules`, `gf/survival.modules`, and later `gf/gf.modules`).
+`scripts/gf_build.sh <manifest> <out.wasm>` builds one module (`gf/arena.modules` for parity, `gf/gf.modules` for the game; a mode is
+selected at runtime since G2, so there is no per-mode manifest).
 For native work (E0+) you also need gcc and SDL2 headers. On a box without sudo, `BOOTSTRAP.md` in the monorepo root has the
 `apt-get download` + `dpkg-deb -x` recipe.
 
@@ -139,7 +140,7 @@ Each task lists: **what** · **files** · **done when** (the acceptance test).
   `cond` and typed `let` bindings (`(let [(x : F32) ...])`), and emits `load32`, `store32_`, `f32`, `i32`, `f64` as calls nothing
   defines; see `docs/PARENA_GAPS.md` 1-3. Make the C emitter accept both forms, and add `stdlib/c/parena_mem.h`: a fixed `uint8_t
   parena_mem[8 MB]` plus inline `load8/16/32/f32/f64` and `store*_` over it, and the numeric conversions. Done when
-  `gf/survival.modules` compiles to C with `gcc -std=c11 -O2 -Wall -Werror`, and a C harness (`gf/tests/c_engine_test.c`) runs the same
+  `gf/gf.modules` compiles to C with `gcc -std=c11 -O2 -Wall -Werror`, and a C harness (`gf/tests/c_engine_test.c`) runs the same
   1,000-tick bot match as the wasm and gets the same `sp_ticks` and final player positions to the bit. PARENA tests stay green.
   *Stopgap if E0 stalls:* the native host runs `gf.wasm` through `wasm3` (vendored in SHANKPIT `third_party/wasm3`), labelled as a
   stopgap with E0 as its replacement.

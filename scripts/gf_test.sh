@@ -4,6 +4,8 @@
 #   engine  : module hygiene, screens, input, bot matches, the wire protocol, determinism
 #   soak    : bots at every level keep fighting and moving
 #   survival: SURVIVAL played headlessly (city, waves, zombies, pickups, chests, death, AGAIN)
+#   router  : one gf.wasm starts a bot match and a survival run in the same session (G2)
+#   modes   : the G3 registry is the only place the modes are named, and each row starts its mode
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
@@ -12,6 +14,8 @@ scripts/gf_build.sh gf/arena.modules "$W/arena.wasm"
 scripts/gf_build.sh gf/gf.modules "$W/gf.wasm"
 gcc -O2 -ffp-contract=off -w -Igf/ref/c460/packages -o "$W/parity_ref" gf/ref/parity_ref.c -lm
 echo "== parity (arena wasm vs the 460 C engine)"; node gf/tests/parity_test.mjs "$W/arena.wasm" "$W/parity_ref" gf/ref/v0_shankpit.map | tail -2
-echo "== engine";   node gf/tests/engine_test.mjs "$W/arena.wasm" | tail -1
-echo "== soak";     node gf/tests/bot_soak.mjs "$W/arena.wasm" 12000 | tail -1
+echo "== engine (arena build)"; node gf/tests/engine_test.mjs "$W/arena.wasm" | tail -1
+echo "== engine (unified gf.wasm through the router)"; node gf/tests/engine_test.mjs "$W/gf.wasm" | tail -1
+echo "== soak (unified gf.wasm)";   node gf/tests/bot_soak.mjs "$W/gf.wasm" 12000 | tail -1
 echo "== survival (unified gf.wasm)"; node gf/tests/survival_test.mjs "$W/gf.wasm" | tail -1
+echo "== router (arena + survival, one session)"; node gf/tests/router_test.mjs "$W/gf.wasm" | tail -1

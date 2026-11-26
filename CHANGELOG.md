@@ -1,5 +1,16 @@
 ## 2026-11-26
 
+- **G2: the mode router, and SURVIVAL behind it (S1).** One `gf.wasm` now boots into the arena and switches modes at runtime. A new
+  global `g-gf-mode` (G 640: 0 arena, 1 survival, 2 playground, 3 queue) is read by all 14 `mod-*` hooks in `gf/modes/router.prn`:
+  mode 1 calls SURVIVAL's `sv-mod-*`, every other id gets the arena's no-op / `true` / 420-bounds answer, so the parity path is
+  untouched and the arena is byte-identical in behaviour. New exported `gf-mode` / `gf-mode-set(m)`: the switch sets the word,
+  clears the session, loads that mode's level (`init-map!` or `sv-mod-init!`) and leaves the game on the title screen.
+  `gf/tests/router_test.mjs` (28 checks) plays an arena bot match (movement, 8 players, ticks), switches to SURVIVAL mid-session
+  (CITY loads, 43 boxes, bot-match players cleared), plays wave 1, switches back and proves the survival clock and spawns do not
+  run in the arena. `survival_test.mjs` selects mode 1 itself, and `gf_test.sh` now runs engine (73/73) and soak against `gf.wasm`
+  as well as the arena build. `gf/survival.modules` is deleted: D3 says one binary holds every mode, and that manifest was already
+  unusable after G1 renamed its hooks. Not tested on a device; headless wasm only. (session: freebuff-20261126)
+
 - **G1: one unified build.** New `gf/gf.modules` links the 460 engine once, with SURVIVAL beside it and `gf/modes/router.prn` owning
   the engine's 14 `mod-*` hooks; `scripts/gf_build.sh gf/gf.modules` builds `gf.wasm` (233 KB, 0 imports, fixed 8 MB) and
   `scripts/gf_test.sh` now runs the SURVIVAL suite against it (31/31). SURVIVAL's hook implementations are renamed `sv-mod-*` so the

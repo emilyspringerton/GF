@@ -15,11 +15,14 @@ SURVIVAL mode (`SHANKPIT/apps/lobby`, `lobby_start_survival_mode` + `witness_ai_
   4 + 3n, at most 5 + n alive, one zombie every 15 s, a 6 s rest, the hidden 60..130 ring, zombie 100 hp / 14 damage / 3 units /
   1.1 s, the gun loot table) and the existing `../PARENA/stdlib/shankpit/chest_rules.prn`.
 
-One wasm32 module, the same build guarantees as the arena: no allocator, no imports, fixed 8 MB, 232 KB.
+One wasm32 module, the same build guarantees as the arena: no allocator, no imports, fixed 8 MB. Since G2 it is not a build of
+its own: SURVIVAL is mode 1 in the unified `gf.wasm`, selected at runtime with `gf-mode-set(1)` (`gf/modes/router.prn`), which is
+what the test does before it plays.
 
 ```bash
-scripts/gf_build.sh gf/survival.modules /tmp/survival.wasm
-node gf/tests/survival_test.mjs /tmp/survival.wasm   # 31 checks
+scripts/gf_build.sh gf/gf.modules /tmp/gf.wasm
+node gf/tests/survival_test.mjs /tmp/gf.wasm     # 31 checks, the mode selected by the test
+node gf/tests/router_test.mjs /tmp/gf.wasm       # arena and survival in one session
 scripts/gf_test.sh
 ```
 
