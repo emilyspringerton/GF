@@ -17,3 +17,21 @@ Agents: add a line per question: date, task ID, the question, what you did inste
   SHANKPHONE's webview" needs three things that are not in the plan yet: (1) a JSON level -> engine box/spawn loader, (2) engine
   exports for an edit mode (pick a box, move/resize it, save), (3) a SHANKPHONE surface that opens NOCK next to the game. I did not
   start any of it under G2/G3. Should this become its own milestone (N1-N3) after M1, or replace part of P (playground)?
+
+- 2026-11-26 · V6 · **Twitch OAuth through IDUNA, the WOTAN viewer feed, and the stream ingest.** The construct's game
+  side is in (V3: `gf_viewer_set(n)` seats one bot per viewer), but the host side is founder-only: which Twitch scopes
+  IDUNA should request, whether WOTAN already exposes a viewer list (EventSub/IRC) or needs one, and where the broadcast
+  feed should point (`packages/render/stream_out.h` sends RTMP to any target). I did not invent an endpoint or a token
+  flow. Please say the shape (webhook, polled count, or chat relay) and the stream key env var, or wire it in WOTAN and
+  hand this repo the count.
+
+- 2026-11-26 · V4/V5 · **Voxworld fidelity: 460 box city now, or the later OG terrain + vehicles?** V2 ported release
+  460's `init_voxworld_city_geo` (107 boxes, no terrain, no vehicle bodies -- 460's `in_vehicle` is a speed class, not an
+  entity). The heightfield (`voxworld_height_at`, `terrain_sample_height`) and the `VEH_*` bodies live only in the later
+  OG tree (`04967da`) and need a ground-height hook in the physics path (E3-sized). V4/V5 are scoped in the plan but not
+  started. Which do you want the construct to be: the 460 city it has now, or the OG terrain first?
+
+- 2026-11-26 · V1-V3 · **Push is still blocked, now in two repos.** GF has `06c7cca` (V1), `8bed6d6` (V2), `c3886a8` (V3)
+  and the docs commit on top, suite green; PARENA has `a5d132a` (REDGARDEN camera + 460 palette, 17/17) on `main`. Both
+  `git push` calls fail with `could not read Username for 'https://github.com'`. Same ask as the earlier lines: a token or
+  a push from a box that has one.

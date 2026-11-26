@@ -307,6 +307,41 @@ A sandbox mode: one big open level for throwing physics around and testing every
   and break nearby glass. Done when tests check the debris count and the falloff of the explosion impulse.
 - **P10 Vehicles in the sandbox.** Port the buggy from 460 (`git show 460:packages/common/physics.h` `VEH_BUGGY`) as a drivable body.
 
+### V: the construct, portals and voxworld (founder 2026-11-26)
+
+Founder, 2026-11-26: *"do we have the legacy portal system from osaka garage set up? we need the construct set up such
+that if we are oauthed into TWITCH via IDUNA and WOTAN then we can have a stream powered construct where it spawns in
+bots for every viewer in my stream also i want OG voxworld ported with the terrain and vehicles"*. This milestone is
+that request, scoped: the garage hub and its ring first, then the 460 voxworld, then the viewer seats, then what the
+OG has that 460 does not (terrain, vehicle bodies), then the Twitch side that is the founder's to provide.
+
+- **V1 Osaka garage and its portals.** `gf/modes/portals.prn` (the legacy table: `server/system/portal.go`
+  `ScenePortals`/`ResolvePortalDestination` + `physics.h` `PORTAL_ID_*`) and `gf/modes/construct/garage.prn`
+  (`map_geo_garage`, `scene_spawn_point(SCENE_GARAGE_OSAKA)`, `garage_vehicle_pads`). Portals are a circle test
+  with an inclusive boundary and a destination scene/point; scenes are `g-map-id` (0 arena, 2 dust, 4 garage,
+  5 voxworld), and a legacy scene with no GF map resolves to -1 rather than a wrong scene. Done when
+  `gf/tests/portals_test.mjs` compares the rows to the Go table, checks inside/boundary/outside triggering and
+  every destination.
+- **V2 VOXWORLD.** `gf/modes/construct/voxworld.prn`: 460's `init_voxworld_city_geo` (seed 1337, 220/50 blocks,
+  9x9 grid, central cross, 107 boxes) and `scene_spawn_point(SCENE_VOXWORLD)` / `VOXWORLD_PORTAL_*`. This is the
+  460 box city, **not** the later OG heightfield (V4). Done when `gf/tests/voxworld_test.mjs` compares every
+  box to the C formula and the C array (garage 18, voxworld 107) and checks the plaza, the wall and the spawns.
+- **V3 CONSTRUCT mode.** `gf/modes/construct/construct.prn` + mode id 4: starts in the garage, the (48, 0) portal
+  lands at the legacy (-420, 8, 180), viewers are seated one per bot (7 slots, the rest wait), the voxworld ring
+  returns to the garage (no stadium scene in GF yet, named not hidden). Host seam: `gf_viewer_set(n)`,
+  `gf_viewer_count()`, `gf_viewer_waiting()`. Done when `gf/tests/construct_test.mjs` walks garage -> voxworld ->
+  garage and tests 0/2/9/12 viewers and a moving viewer bot.
+- **V4 Terrain.** The later OG heightfield (`voxworld_height_at`, `terrain_sample_height`, `g_scene_terrain`) as an
+  engine surface: needs a ground-height hook in `sp_phys`/`sp_sim` and a map-data channel, i.e. E3-sized work.
+  Done when a slide, a jump and a spawn on a 1:1 heightfield match a C reference. **Not started.**
+- **V5 Vehicle bodies.** 460 had no vehicle entities -- `in_vehicle` was a speed class -- so this ports the OG
+  buggy/landship bodies from `git show 04967da:packages/common/physics.h` (`VEH_*`) onto the three garage pads.
+  Done when a test drives one off a pad and its collision, speed and exit match the C rules. **Not started.**
+- **V6 The stream itself (founder).** Twitch OAuth through IDUNA, the WOTAN viewer feed and the ingest the
+  broadcast feed targets (`packages/render/stream_out.h` already sends RTMP). Founder-only credentials; see
+  `docs/QUESTIONS.md`. Done when a real stream's viewer count reaches `gf_viewer_set` and the STREAM mode's
+  overlay shows a handle per seat.
+
 ### A: packaging and distribution
 
 - **A1 The SHANKPHONE plays `gf.wasm`.** `SHANKPIT/apps/netkit` loads `gf.wasm` instead of `survival.wasm`; the Survival object opens
@@ -320,9 +355,9 @@ A sandbox mode: one big open level for throwing physics around and testing every
 
 ### F: later, after E/M/S/Q/P
 
-TDM and CTF with bots (460 had both), EVOLUTION, the scenes and portals (Garage Osaka, Voxworld and more), story, the level editor, NOCK
-levels, IDUNA stats and leaderboards, skins, vehicles beyond the buggy. Each becomes a mode or mod in the same shape. Scope them one at
-a time with the founder.
+TDM and CTF with bots (460 had both), EVOLUTION, the remaining scenes (Stadium, Oil Tanker, Poo Poo Island; Garage Osaka and Voxworld
+are V), story, the level editor, NOCK levels, IDUNA stats and leaderboards, skins, vehicle bodies beyond the garage pads. Each becomes a
+mode or mod in the same shape. Scope them one at a time with the founder.
 
 ## 8. Order of work (take the first open one)
 
@@ -340,6 +375,9 @@ Milestone 4, **playground physics**:
 
 Milestone 5, **survival parity and the bigger world**:
 - [ ] E3 · [ ] S2 · [ ] S3 · [ ] S4 · [ ] S5 · [ ] S6 · [ ] S7 · [ ] S8
+
+Milestone 6, **the construct, portals and voxworld**:
+- [x] V1 (`06c7cca`) · [x] V2 (`8bed6d6`) · [x] V3 (`c3886a8`) · [ ] V4 · [ ] V5 · [ ] V6
 
 Ships to phones:
 - [ ] A1 (after Milestone 1) · [ ] M5
@@ -379,7 +417,9 @@ Claimed by GF:
 | G words 640..659 | router and menu: 640 is `g-gf-mode` (G2), 641..659 reserved for M1 |
 | G words 660..699 | queue (Q; reserve) |
 | G words 700..759 | playground (P; reserve) |
+| G words 760..779 | construct (`construct.prn`: scene, on, viewers, bots, portals) |
 | `0x080000`..`0x081FFF` | survival region (box colours, guns, chests, per-slot) |
+| `0x083000`..`0x0831FF` | construct box colours (reserved by V3; boxes use the engine palette today) |
 | `0x082000`..`0x082FFF` | settings block (G4) |
 | `0x090000`..`0x0BFFFF` | rigid bodies (P2) |
 | `0x0C0000`..`0x0FFFFF` | audio PCM out (E4) |
@@ -391,9 +431,9 @@ E3 moves the engine's own regions: update this table in the same commit.
 | Path | What |
 |---|---|
 | `gf/engine/` | The 460 engine in PARENA (parity path: `sp_phys`, `sp_sim` `world-step!`, `sp_map*`) |
-| `gf/modes/` | The router (`router.prn`), the mode registry (`modes.prn`, G3) and SURVIVAL (`survival/`: `sv_city.prn` = the level, `sv_mod.prn` = the mods) |
+| `gf/modes/` | The router (`router.prn`), the mode registry (`modes.prn`, G3), the legacy portal table (`portals.prn`, V1), SURVIVAL (`survival/`) and CONSTRUCT (`construct/`: garage, voxworld, mode) |
 | `gf/ref/c460/` | The 460 C reference headers (parity) · `gf/ref/parity_ref.c` · `gf/ref/v0_shankpit.map` |
-| `gf/tests/` | parity, engine, soak, survival (node) |
+| `gf/tests/` | parity, engine, soak, survival, router, modes, portals, voxworld, construct (node) |
 | `gf/*.modules` | Build manifests (file lists, in order) |
 | `scripts/gf_build.sh`, `scripts/gf_test.sh` | Build one module; run everything |
 | `apps/game`, `packages/game`, `packages/sim`, `bazel/` | Gary's clean-room layer (D7) |

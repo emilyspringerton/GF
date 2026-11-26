@@ -1,5 +1,46 @@
 ## 2026-11-26
 
+- **feat(gf): V3 CONSTRUCT, a stream's own voxworld with one bot per viewer (`construct_test` 27, `modes_test` 18).**
+  Founder: *"we need the construct set up such that if we are oauthed into TWITCH via IDUNA and WOTAN then we can have a
+  stream powered construct where it spawns in bots for every viewer in my stream"*. Mode id 4 is that game side: it starts
+  in the Osaka garage, the (48, 0) portal lands the player at the Go resolve point (-420, 8, 180) in the voxworld, and the
+  voxworld ring returns to the garage (the legacy table says stadium; GF has no stadium scene, so CONSTRUCT's hub is the
+  garage -- named, not hidden). The host's seam is three words: `gf_viewer_set(n)` whenever the viewer count changes,
+  `gf_viewer_count()`, and `gf_viewer_waiting()`. Everything after that is the game's: `cg-sync-bots!` seats one engine bot
+  per viewer on the voxworld spawns, named VIEWER 1..7, and frees the slot when a viewer leaves; the engine's own AI drives
+  them (the mode only seats them), so they fight and move like any bot. Seven is the engine's free-slot count, so twelve
+  viewers mean seven bots and five waiting -- a queue, not a dropped viewer. The router grew a fifth id (clamp 0..4) and
+  the G3 registry a fourth row (CONSTRUCT needs the network; its begin is `cg-start!`). Verified: `construct_test` walks
+  garage -> voxworld -> garage, tests 0/2/9/12 viewers, the 7-bot cap and the waiting count, the viewer names, and that a
+  seated bot actually moves through 30 ticks; the full suite is green. NOT done, named: the Twitch/IDUNA/WOTAN side is not
+  wired (that is V6, and the credentials are the founder's -- `docs/QUESTIONS.md`), there is no stream overlay or handle
+  per seat yet, and the voxworld has no terrain or vehicle bodies (V4/V5).
+
+- **feat(gf): V2 VOXWORLD, the 460 city, ported box for box (`voxworld_test` 16).** `gf/modes/construct/voxworld.prn`
+  is `init_voxworld_city_geo` in PARENA: the same seed 1337, the same 220/50 block and road, the same 9x9 grid with its
+  central cross removed, the same sin/cos noise, the same annex on every third cell -- 5 boundary slabs, 75 blocks, 27
+  annexes, **107 boxes**, under the engine's 128-box map region. Spawns are `scene_spawn_point(SCENE_VOXWORLD)` (five pads
+  at y 6 on z 0) and the ring portal is `VOXWORLD_PORTAL_*` at (-360, 2, 0) r16; bounds 1180 and kill-y -120 are the C
+  constants. The test recomputes the formula in f32 and compares every field of every box (worst under 0.01, which is the
+  sinf/cosf last-bit difference), checks the garage's 18 boxes against the parsed C array exactly, and asserts the plaza
+  is empty, no block reaches the inner wall face, and the spawns are where the C puts them. NOT done, named: this is the
+  460 voxworld, which is a walled box city -- the later OG's heightfield terrain and its vehicle bodies are V4/V5, and the
+  boxes are drawn with the engine's own palette (the construct colour block is reserved but unwritten).
+
+- **feat(gf): V1 the Osaka garage and its legacy portal ring, as data (`portals_test` 45).** Founder: *"do we have the
+  legacy portal system from osaka garage set up? ... i want OG voxworld ported with the terrain and vehicles"*. The answer
+  was no in the rewrite: the ring lived only in the legacy layer (`server/system/portal.go`, and `PORTAL_ID_*` in
+  `gf/ref/c460/packages/common/physics.h`), and nothing in `gf/` knew it existed. `gf/modes/portals.prn` is that table as
+  PARENA data: the five garage exits (ids 0/3/4/6/8, at the Go coordinates and radii) and the voxworld end (id 2, ring at
+  -360/0 r16), each with its destination scene and landing point. Scenes are GF map ids (0 arena, 2 dust, 4 garage,
+  5 voxworld); the Oil Tanker and Poo Poo Island exits resolve to **-1** because GF has no map for them, so an unbuilt exit
+  refuses instead of teleporting into nothing. Triggering is PortalTriggered's own test -- squared distance, inclusive
+  boundary, first row wins. `gf/modes/construct/garage.prn` is `map_geo_garage` (18 boxes, box for box) plus
+  `scene_spawn_point(SCENE_GARAGE_OSAKA)`'s five pads and `garage_vehicle_pads`' three bays and labels. Verified:
+  `node gf/tests/portals_test.mjs` **45/45**, which parses the Go table and compares row for row, then triggers on the
+  boundary, just outside it, in the wrong scene, and walks every destination. NOT done, named: nothing draws the garage yet
+  and no mode has a second scene to switch to until V2/V3; the tanker and island are rows without maps.
+
 - **G3: the mode registry.** `gf/modes/modes.prn` is the table the menu (M1) will read and the only place the modes are named:
   three rows -- BOT MATCH (id 0), SURVIVAL (id 1), QUEUE (id 3) -- each with a one-line description, whether starting it needs the
   network, and a start function. PARENA has no function pointers, so the table is `gf-mode-count`, `gf-mode-id/name/desc/needs-net`
