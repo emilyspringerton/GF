@@ -358,10 +358,14 @@ legacy **Oil Tanker** scene (`server/system/portal.go` `SceneOilTanker`), reache
   jump = stroke, crouch = dive), so `sp_phys.prn` and `world-step!` are untouched. Done when `gf/tests/waterworld_test.mjs`
   checks the legacy rows and destinations, the wave function's determinism and range, floating (no sinking), the swim cap
   and travel, stroking up, dry deck, the ladder, the bow gate home, and that both render angles do not trap.
-- **W2 Boat bodies.** One drivable launch on the same water: buoyancy to the wave height, thrust and steering from the
-  rider's own command words, a ride/dismount handshake, a foam wake and its own HUD line -- the first place `in_vehicle`
-  becomes an entity in GF (460 had only a speed class; V5 does the same for the garage pads). Done when `gf/tests/boat_test.mjs`
-  boards, drives, turns, dismounts and confirms the hull rides the waves and stays in bounds.
+- **W2 Boat bodies.** One drivable launch on the same water (`gf/modes/construct/boats.prn`): buoyancy to the wave
+  height, momentum (thrust against drag, capped), helm that only bites with way on, reverse at half speed, the rider's own
+  command words (w/s/a/d), jump-to-board / crouch-to-step-off, a foam wake and its own HUD line -- the first place
+  `in_vehicle` becomes an entity in GF (460 had only a speed class; V5 does the same for the garage pads). Named limits: the
+  launch does not collide with the ship's boxes (it is a water body with a sea-edge clamp, not a hull-vs-hull test), and the
+  tanker's bow gate only fires from the deck (y > 16) because GF puts water under a circle the legacy scene had none under.
+  Done when `gf/tests/boat_test.mjs` boards, drives, turns, rides the swell, reverses, runs the sea edge, dismounts and
+  confirms the rider is carried and released.
 
 ### A: packaging and distribution
 
@@ -401,7 +405,7 @@ Milestone 6, **the construct, portals and voxworld**:
 - [x] V1 (`06c7cca`) · [x] V2 (`8bed6d6`) · [x] V3 (`c3886a8`) · [ ] V4 · [ ] V5 · [ ] V6
 
 Milestone 7, **ships and water** (the tanker off the Osaka garage):
-- [ ] W1 · [ ] W2
+- [x] W1 (`608cb5f`) · [ ] W2
 
 Ships to phones:
 - [ ] A1 (after Milestone 1) · [ ] M5
@@ -444,7 +448,8 @@ Claimed by GF:
 | G words 760..779 | construct (`construct.prn`: scene, on, viewers, bots, portals) |
 | `0x080000`..`0x081FFF` | survival region (box colours, guns, chests, per-slot) |
 | `0x083000`..`0x0831FF` | construct box colours (V3 reserved it; W1's tanker uses it, the garage and voxworld still take the engine palette) |
-| `0x084000`..`0x0840FF` | water state: each player's previous position as the swim hook saw it (W1); the boat bodies of W2 follow |
+| `0x084000`..`0x0840FF` | water: each player's previous position as the swim hook saw it (W1) |
+| `0x084100`..`0x0841FF` | boats: the launch's state -- position, heading, speed, rider (W2) |
 | `0x082000`..`0x082FFF` | settings block (G4) |
 | `0x090000`..`0x0BFFFF` | rigid bodies (P2) |
 | `0x0C0000`..`0x0FFFFF` | audio PCM out (E4) |

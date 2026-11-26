@@ -88,6 +88,8 @@
     (cg-despawn-bots!)
     (clear-world!)
     (case scene 4 (garage-init!) 6 (ww-init!) (voxworld-init!))
+    (when (= scene 6) (wb-init!))
+    (when (!= scene 6) (wb-clear-rider!))
     (gi! (g-map-id) scene)
     (gi! (g-cg-scene) scene)
     (gi! (g-mode) 0)
@@ -187,21 +189,26 @@
 (defn cg-mod-tick! [] : Unit
   (when (and (= (gi (g-cg-on)) 1) (= (gi (g-phase)) 1))
     (do
-      (when (= (gi (g-cg-scene)) 6) (ww-step!))
+      (when (= (gi (g-cg-scene)) 6) (do (ww-step!) (wb-step!) (wb-use-all!)))
       (if (= (gi (g-cg-scene)) 4)
           (let [hit (portal-at 4 (p-x 0) (p-z 0))]
             (cond (= hit 3) (cg-enter-voxworld!)
                   (= hit 6) (cg-enter-tanker!)
                   :else unit))
           (if (= (gi (g-cg-scene)) 6)
-              (when (= (portal-at 6 (p-x 0) (p-z 0)) 7) (cg-leave-tanker!))
+              ;; the bow gate is a floor circle at (292, 0), but in GF there is water under that circle:
+              ;; only a body on the deck takes it (a swimmer or a launch below decks does not)
+              (when (and (= (portal-at 6 (p-x 0) (p-z 0)) 7) (> (p-y 0) 16.0)) (cg-leave-tanker!))
               (when (cg-at-vox-portal?) (cg-leave-voxworld!))))
       (when (> (gi (g-cg-note-t)) 0) (gi! (g-cg-note-t) (- (gi (g-cg-note-t)) 1))))))
 
 ;; the tanker draws its sea and colours its own ship; the garage and voxworld keep the engine's look
-(defn cg-mod-draw-world! [] : Unit (when (= (gi (g-cg-scene)) 6) (ww-draw!)))
+(defn cg-mod-draw-world! [] : Unit
+  (when (= (gi (g-cg-scene)) 6) (do (ww-draw!) (wb-draw!))))
 (defn cg-mod-box-color [(i : I32)] : I32 (if (= (gi (g-cg-scene)) 6) (ww-box-colour i) -1))
 (defn cg-mod-hud! [(me : I32)] : Unit
-  (if (= (gi (g-cg-scene)) 6) (ww-hud! me) (draw-scorebar! me)))
+  (if (= (gi (g-cg-scene)) 6)
+      (do (ww-hud! me) (when (wb-hud!) unit))
+      (draw-scorebar! me)))
 
 (defn cg-mod-bounds [] : F32 (cg-scene-bounds))

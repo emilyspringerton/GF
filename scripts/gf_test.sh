@@ -10,6 +10,7 @@
 #   voxworld: V2, the garage and VOXWORLD are the 460 geometry, box for box
 #   construct: V3, the garage -> voxworld construct with one bot per viewer
 #   waterworld: W1, the garage's tanker gate, the faked sea and swimming
+#   boat     : W2, the launch on that water: board, drive, turn, ride, step off
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
@@ -28,3 +29,4 @@ echo "== portals (the Osaka garage ring)"; node gf/tests/portals_test.mjs "$W/gf
 echo "== voxworld (garage + voxworld geometry)"; node gf/tests/voxworld_test.mjs "$W/gf.wasm" | tail -1
 echo "== construct (garage -> voxworld, one bot per viewer)"; node gf/tests/construct_test.mjs "$W/gf.wasm" | tail -1
 echo "== waterworld (the tanker gate, the sea, swimming)"; node gf/tests/waterworld_test.mjs "$W/gf.wasm" | tail -1
+echo "== boat (the launch: board, drive, turn, ride)"; node gf/tests/boat_test.mjs "$W/gf.wasm" | tail -1

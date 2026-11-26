@@ -1,0 +1,160 @@
+;; gf/modes/construct/boats.prn -- W2: a launch you can drive on the tanker's water.
+;;
+;; Founder, 2026-11-26: "we need to start working on ship physics ... swimming physics boat physics and water
+;; simulation". W1 (waterworld.prn) made the sea a function and the swimmer a force; this is the first vehicle
+;; body in GF -- the thing 460 never had (`in_vehicle` there is a speed class, not an entity) and the same shape
+;; V5 will take onto the garage's pads.
+;;
+;; One boat, and its physics is the same fake as the swimmer's: it rides the wave height at its own (x, z)
+;; (a lerp toward the surface, so it bobs with the sea), it has momentum (thrust against drag, capped speed), and
+;; it only turns while it is moving, like a hull with a rudder. The rider's own command words drive it -- forward
+;; and back on w/s, steering on a/d -- and while riding the player is pinned to the deck, so the camera, the
+;; renderer and the HUD all follow for free.
+;;
+;; Boarding is jump next to the hull; dismount is crouch. Both are the rider's own inputs, so no extra key.
+;;
+;; Memory: 0x084100, 16 words (plan §9; W1's swimmer state sits just below it at 0x084000).
+
+(defn wb-base [] : I32 540928)   ; 0x084100
+(defn wb-slot [(k : I32)] : I32 (+ (wb-base) (shl k 2)))
+(defn wb-i [(k : I32)] : I32 (load32 (wb-slot k)))
+(defn wb-f [(k : I32)] : F32 (loadf32 (wb-slot k)))
+(defn wb-i! [(k : I32) (v : I32)] : Unit (store32! (wb-slot k) v))
+(defn wb-f! [(k : I32) (v : F32)] : Unit (storef32! (wb-slot k) v))
+
+;; word map: 0 active, 1 x, 2 y, 3 z, 4 yaw, 5 speed, 6 rider (-1 none), 7 last spray tick
+(defn wb-active [] : I32 (wb-i 0))
+(defn wb-x [] : F32 (wb-f 1))
+(defn wb-y [] : F32 (wb-f 2))
+(defn wb-z [] : F32 (wb-f 3))
+(defn wb-yaw [] : F32 (wb-f 4))
+(defn wb-speed [] : F32 (wb-f 5))
+(defn wb-rider [] : I32 (wb-i 6))
+
+;; a rider cannot outlive the scene: the construct clears the seat when it loads something that is not the water
+(defn wb-clear-rider! [] : Unit (wb-i! 6 -1))
+
+(defn wb-home-x [] : F32 -250.0)
+(defn wb-home-z [] : F32 90.0)
+(defn wb-max-speed [] : F32 1.6)     ; units a tick at full ahead (~100 u/s)
+(defn wb-reverse [] : F32 0.7)
+(defn wb-accel [] : F32 0.03)
+(defn wb-drag [] : F32 0.982)
+(defn wb-turn [] : F32 2.4)          ; degrees a tick at full speed and full helm
+(defn wb-board-r [] : F32 9.0)
+(defn wb-draft [] : F32 0.6)         ; how far the waterline sits above the hull centre
+
+(defn wb-place! [(x : F32) (z : F32)] : Unit
+  (do
+    (wb-f! 1 x) (wb-f! 3 z)
+    (wb-f! 2 (+ (ww-surface-at x z (ww-t)) (wb-draft)))))
+
+(defn wb-init! [] : Unit
+  (do
+    (wb-i! 0 1)
+    (wb-f! 4 90.0)          ; bows to the north (-z), out of the ship's flank
+    (wb-f! 5 0.0)
+    (wb-i! 6 -1)
+    (wb-i! 7 0)
+    (wb-place! (wb-home-x) (wb-home-z))))
+
+;; the rider stands on the deck: pinned each tick, so the hull carries them
+(defn wb-pin! [(r : I32) (x : F32) (z : F32)] : Unit
+  (let [(yaw : F32) (wb-yaw)]
+    (do
+      (set-p-x! r (+ x (* (fwd-x yaw) 0.5)))
+      (set-p-z! r (+ z (* (fwd-z yaw) 0.5)))
+      (set-p-y! r (+ (wb-y) 1.6))
+      (set-p-vx! r 0.0) (set-p-vy! r 0.0) (set-p-vz! r 0.0)
+      (set-p-on-ground! r 1))))
+
+;; the hull rides the swell under it and keeps its speed through a turn
+(defn wb-step! [] : Unit
+  (when (!= (wb-active) 0)
+    (let [(x : F32) (wb-x) (z : F32) (wb-z)
+          (t : F32) (ww-t)
+          (r : I32) (wb-rider)
+          (helm : Bool) (and (>= r 0) (alive? r))
+          (thr : F32) (if helm (clamp-f (p-in-fwd r) (- 0.0 1.0) 1.0) 0.0)
+          (str : F32) (if helm (clamp-f (p-in-strafe r) (- 0.0 1.0) 1.0) 0.0)
+          (sp : F32) (clamp-f (+ (* (wb-speed) (wb-drag)) (* thr (wb-accel))) (- 0.0 (wb-reverse)) (wb-max-speed))
+          (turn : F32) (* str (* (wb-turn) (/ sp (wb-max-speed))))
+          (yaw : F32) (norm-yaw (- (wb-yaw) turn))
+          (nx : F32) (+ x (* (fwd-x yaw) sp))
+          (nz : F32) (+ z (* (fwd-z yaw) sp))
+          (lim : F32) (- (ww-bounds) 12.0)
+          (bx : F32) (clamp-f nx (- 0.0 lim) lim)
+          (bz : F32) (clamp-f nz (- 0.0 lim) lim)
+          (hit : Bool) (or (!= bx nx) (!= bz nz))]
+      (do
+        (wb-f! 5 (if hit (* sp (- 0.0 0.4)) sp))
+        (wb-f! 4 yaw)
+        (wb-f! 1 bx) (wb-f! 3 bz)
+        (wb-f! 2 (lerp (wb-y) (+ (ww-surface-at bx bz t) (wb-draft)) 0.3))
+        (when (and (> (fabs sp) 0.35) (> (- (gi (g-tick)) (wb-i 7)) 6))
+          (do (wb-i! 7 (gi (g-tick)))
+              (fx-sparks! bx (ww-surface-at bx bz t) bz 3 2)))
+        (when helm (wb-pin! r bx bz))))))
+
+;; is the player beside the hull (and at deck height)?
+(defn wb-near? [(p : I32)] : Bool
+  (let [(dx : F32) (- (p-x p) (wb-x))
+        (dz : F32) (- (p-z p) (wb-z))
+        (dy : F32) (- (p-y p) (wb-y))]
+    (and (<= (+ (* dx dx) (* dz dz)) (* (wb-board-r) (wb-board-r)))
+         (< (fabs dy) 8.0))))
+
+;; jump beside the hull boards it; crouch aboard steps off. The rider's own inputs, no extra key.
+(defn wb-use! [(p : I32)] : Unit
+  (let [r (wb-rider)]
+    (cond
+      (= r p)
+        (when (!= (p-crouching p) 0)
+          (do (wb-i! 6 -1)
+              (set-p-x! p (+ (wb-x) 5.0))
+              (set-p-y! p (+ (wb-y) 2.0))
+              (set-p-vy! p 0.0)))
+      (and (= r -1) (wb-near? p) (!= (p-in-jump p) 0))
+        (do (wb-i! 6 p)
+            (wb-pin! p (wb-x) (wb-z))
+            (fx-sparks! (wb-x) (ww-surface-at (wb-x) (wb-z) (ww-t)) (wb-z) 3 4))
+      :else unit)))
+
+(defn wb-use-all! [] : Unit
+  (dotimes [i (max-players)]
+    (when (alive? i) (wb-use! i))))
+
+;; ---- drawing -----------------------------------------------------------------------------------------
+(defn wb-draw! [] : Unit
+  (when (!= (wb-active) 0)
+    (let [(x : F32) (wb-x) (y : F32) (wb-y) (z : F32) (wb-z) (yaw : F32) (wb-yaw) (sp : F32) (wb-speed)]
+      (do
+        (gi! (g-pa) 255)
+        (draw-ybox! x y z yaw 4.2 1.0 9.0 (rgb 72 84 96) 1)              ; hull
+        (draw-ybox! x (+ y 1.6) z yaw 2.6 1.1 3.0 (rgb 214 208 196) 1)   ; wheelhouse
+        ;; the wake: a foam quad trailing the transom, wider and brighter the faster she goes
+        (when (> (fabs sp) 0.3)
+          (let [(bx : F32) (- x (* (fwd-x yaw) 10.0))
+                (bz : F32) (- z (* (fwd-z yaw) 10.0))
+                (t : F32) (ww-t)
+                (w : F32) (+ 3.0 (* 10.0 (fabs sp)))
+                (ax : F32) (- bx w) (az : F32) (- bz w)
+                (ex : F32) (+ bx w) (ez : F32) (+ bz w)]
+            (gi! (g-pa) (clamp-i (i32 (* 130.0 (fabs sp))) 40 150))
+            (set-surface! (rgb 226 236 240) 2 w w)
+            (draw-quad! ax (ww-surface-at ax az t) az
+                        ex (ww-surface-at ex az t) az
+                        ex (ww-surface-at ex ez t) ez
+                        ax (ww-surface-at ax ez t) ez
+                        w w)))
+        (gi! (g-pa) 255)))))
+
+;; the boat's own HUD line, under the tanker panel; true when it drew
+(defn wb-hud! [] : Bool
+  (if (>= (wb-rider) 0)
+      (do
+        (panel 238 40 164 30)
+        (draw-text "LAUNCH" 246 42 1 (ink-faint))
+        (draw-int (i32 (* (fabs (wb-speed)) 100.0)) 320 48 2 (amber))
+        true)
+      false))

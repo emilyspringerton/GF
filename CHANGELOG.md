@@ -1,5 +1,16 @@
 ## 2026-11-26
 
+- **feat(gf): W2 the launch, the first vehicle body in GF (`boat_test` 21).** `gf/modes/construct/boats.prn`: one boat on the
+  tanker's water, riding the same wave function as the swimmer (a lerp toward the surface at its own x/z), with momentum
+  (thrust against drag, 1.6 units a tick ahead, 0.7 astern), a helm that only bites with way on -- stopped, it does not pivot --
+  and the rider's own w/s/a/d driving it. Jump beside the hull boards, crouch aboard steps off; while riding the player is
+  pinned to the deck each tick, so the camera and HUD follow for free, and a foam quad trails the transom scaled by speed.
+  Two real bugs the test caught: the bow gate is a 2D circle in the legacy table and GF puts water under it, so a launch
+  crossing (292, 0) teleported its rider out of the scene -- the gate now needs a body on the deck (y > 16) -- and a rider could
+  outlive the scene it was in, so `cg-load-scene!` clears the seat off the water. Named limits: the launch does not collide with
+  the ship's boxes (it clamps at the sea edge instead), and neither the water nor the boat has been seen in a browser, only
+  headless (both render angles are checked for trapping).
+
 - **feat(gf): W1 the OIL TANKER, the garage's water gate, the faked sea and swimming (`waterworld_test` 36, `portals_test` 51).**
   Founder: *"we need to start working on ship physics can we have a water world level where we can start to work on swimming physics
   boat physics and water simulation we can basically fake it while making it nice?"* and *"ship it into the OG shankpit engine as a
