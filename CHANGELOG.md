@@ -1,5 +1,20 @@
 ## 2026-11-26
 
+- **feat(gf): W1 the OIL TANKER, the garage's water gate, the faked sea and swimming (`waterworld_test` 36, `portals_test` 51).**
+  Founder: *"we need to start working on ship physics can we have a water world level where we can start to work on swimming physics
+  boat physics and water simulation we can basically fake it while making it nice?"* and *"ship it into the OG shankpit engine as a
+  scene off of the Osaka garage via a legacy portal"*. It is the scene the legacy layer already names: `portal.go` `SceneOilTanker`,
+  gate `PortalIDGarageToTanker` (6) at (-48, 0) landing at (-265, 6, 0), and its own gate 7 at (292, 0) back to (-38, 6, 0) -- rows
+  3 and 6 of `gf/modes/portals.prn`, which V1 left at -1 because GF had no tanker map. `gf/modes/construct/waterworld.prn` is that
+  map: a 540-unit tanker in 42 boxes plus the slab (hull, deck, accommodation, funnel, manifold, hatches, crane, containers, rails,
+  buoys, stern ladder), coloured through the construct colour block V3 reserved. The sea is three travelling sines -- a pure
+  function of (x, z, tick), so the renderer, the swimmer and the tests share one truth -- drawn as a camera-following 14x14 patch
+  of 80-unit quads over an opaque seabed. Swimming is a post-step hook in `mod-tick!`: an overdamped spring to the surface, water
+  drag, a hard cap applied to the tick's own displacement (the engine's walk step runs before the hook), jump = stroke, crouch =
+  dive, a splash on entry, and a slow set to the east. `sp_phys.prn` and `world-step!` are untouched, and parity still reads
+  40 scenarios / 2,223 checkpoints, worst 5.00e-7. Not done: boats (W2), a water sound (no splash id was invented), and the scene
+  has only been seen headless -- the two render angles are checked for trapping, not looked at in a browser.
+
 - **docs(gf): the push blockers are closed and both repos are synced.** The three `docs/QUESTIONS.md` entries that said `git push`
   failed with `could not read Username for 'https://github.com'` were true when written and were the only record of the blocker.
   The box's SSH key already authenticates as `emilyspringerton`, so both `origin` remotes moved from HTTPS to SSH and everything

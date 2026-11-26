@@ -18,8 +18,12 @@
 ;; VIEWER 1..7: the wire carries no handles into PARENA yet, so a chat name on screen needs the host name
 ;; table (V6). There is no scoring/overlay for the stream yet either -- the engine HUD is the 460 one.
 ;;
-;; Memory: G words 760..779 (plan §9) and the construct colour block at 0x083000 (not used yet: boxes take
-;; the engine's own palette).
+;; Scenes: 4 the garage, 5 the voxworld, 6 the oil tanker (W1, gf/modes/construct/waterworld.prn). The tanker is
+;; a legacy exit of the garage too: portal 6 at (-48, 0) lands at (-265, 6, 0), and the tanker's own gate 7 at
+;; (292, 0) comes back to (-38, 6, 0), both straight out of server/system/portal.go via gf/modes/portals.prn.
+;;
+;; Memory: G words 760..779 (plan §9) and the construct colour block at 0x083000 (the tanker's boxes carry their
+;; own colours there; the garage and voxworld take the engine's palette).
 
 (defn g-cg-scene [] : I32 760)      ; g-map-id of the loaded construct scene (4 garage, 5 voxworld)
 (defn g-cg-on [] : I32 761)         ; 1 while the construct session is running
@@ -40,7 +44,8 @@
 (defn cg-bot-name [(b : I32)] : String
   (case b 0 "VIEWER 1" 1 "VIEWER 2" 2 "VIEWER 3" 3 "VIEWER 4" 4 "VIEWER 5" 5 "VIEWER 6" 6 "VIEWER 7" "VIEWER"))
 
-(defn cg-scene-bounds [] : F32 (if (= (gi (g-cg-scene)) 4) (garage-bounds) (vx-bounds)))
+(defn cg-scene-bounds [] : F32
+  (case (gi (g-cg-scene)) 4 (garage-bounds) 6 (ww-bounds) (vx-bounds)))
 
 ;; ---- bots -------------------------------------------------------------------------------------------------
 ;; A viewer takes a free slot; a viewer who leaves frees it. Death is the engine's (mod-respawn? is true),
@@ -82,7 +87,7 @@
   (do
     (cg-despawn-bots!)
     (clear-world!)
-    (if (= scene 4) (garage-init!) (voxworld-init!))
+    (case scene 4 (garage-init!) 6 (ww-init!) (voxworld-init!))
     (gi! (g-map-id) scene)
     (gi! (g-cg-scene) scene)
     (gi! (g-mode) 0)
@@ -115,6 +120,23 @@
     (respawn-at! 0 0.0 6.0 46.0)
     (set-p-spawn-prot! 0 0)
     (gi! (g-cg-portal) 2)))
+
+;; the garage's tanker gate (portal 6). The landing is the legacy resolve point, (-265, 6, 0): 25 units aft of
+;; the tanker's stern, in the water, which is the way into a water level.
+(defn cg-enter-tanker! [] : Unit
+  (do
+    (cg-load-scene! 6)
+    (respawn-at! 0 (portal-dest-x 4 6) (portal-dest-y 4 6) (portal-dest-z 4 6))
+    (set-p-spawn-prot! 0 0)
+    (gi! (g-cg-portal) 6)))
+
+;; the tanker's gate back (portal 7 at (292, 0), the bow) -> the garage, at the legacy landing (-38, 6, 0)
+(defn cg-leave-tanker! [] : Unit
+  (do
+    (cg-load-scene! 4)
+    (respawn-at! 0 (portal-dest-x 6 7) (portal-dest-y 6 7) (portal-dest-z 6 7))
+    (set-p-spawn-prot! 0 0)
+    (gi! (g-cg-portal) 7)))
 
 ;; ---- the session -------------------------------------------------------------------------------------------
 (defn cg-start! [] : Unit
@@ -165,9 +187,21 @@
 (defn cg-mod-tick! [] : Unit
   (when (and (= (gi (g-cg-on)) 1) (= (gi (g-phase)) 1))
     (do
+      (when (= (gi (g-cg-scene)) 6) (ww-step!))
       (if (= (gi (g-cg-scene)) 4)
-          (when (= (portal-at 4 (p-x 0) (p-z 0)) 3) (cg-enter-voxworld!))
-          (when (cg-at-vox-portal?) (cg-leave-voxworld!)))
+          (let [hit (portal-at 4 (p-x 0) (p-z 0))]
+            (cond (= hit 3) (cg-enter-voxworld!)
+                  (= hit 6) (cg-enter-tanker!)
+                  :else unit))
+          (if (= (gi (g-cg-scene)) 6)
+              (when (= (portal-at 6 (p-x 0) (p-z 0)) 7) (cg-leave-tanker!))
+              (when (cg-at-vox-portal?) (cg-leave-voxworld!))))
       (when (> (gi (g-cg-note-t)) 0) (gi! (g-cg-note-t) (- (gi (g-cg-note-t)) 1))))))
+
+;; the tanker draws its sea and colours its own ship; the garage and voxworld keep the engine's look
+(defn cg-mod-draw-world! [] : Unit (when (= (gi (g-cg-scene)) 6) (ww-draw!)))
+(defn cg-mod-box-color [(i : I32)] : I32 (if (= (gi (g-cg-scene)) 6) (ww-box-colour i) -1))
+(defn cg-mod-hud! [(me : I32)] : Unit
+  (if (= (gi (g-cg-scene)) 6) (ww-hud! me) (draw-scorebar! me)))
 
 (defn cg-mod-bounds [] : F32 (cg-scene-bounds))

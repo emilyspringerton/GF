@@ -9,6 +9,7 @@
 #   portals : V1, the Osaka garage portal ring is the legacy layer's table and it triggers
 #   voxworld: V2, the garage and VOXWORLD are the 460 geometry, box for box
 #   construct: V3, the garage -> voxworld construct with one bot per viewer
+#   waterworld: W1, the garage's tanker gate, the faked sea and swimming
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
@@ -26,3 +27,4 @@ echo "== modes (the G3 table)"; node gf/tests/modes_test.mjs "$W/gf.wasm" | tail
 echo "== portals (the Osaka garage ring)"; node gf/tests/portals_test.mjs "$W/gf.wasm" | tail -1
 echo "== voxworld (garage + voxworld geometry)"; node gf/tests/voxworld_test.mjs "$W/gf.wasm" | tail -1
 echo "== construct (garage -> voxworld, one bot per viewer)"; node gf/tests/construct_test.mjs "$W/gf.wasm" | tail -1
+echo "== waterworld (the tanker gate, the sea, swimming)"; node gf/tests/waterworld_test.mjs "$W/gf.wasm" | tail -1

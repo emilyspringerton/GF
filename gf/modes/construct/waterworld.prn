@@ -1,0 +1,248 @@
+;; gf/modes/construct/waterworld.prn -- the OIL TANKER: the garage's water gate, a fake sea, swimming (W1).
+;;
+;; Founder, 2026-11-26: "we need to start working on ship physics can we have a water world level where we can
+;; start to work on swimming physics boat physics and water simulation we can basically fake it while making it
+;; nice?" and "ship it into the OG shankpit engine as a scene off of the Osaka garage via a legacy portal".
+;;
+;; So this is not a new mode: it is the tanker scene the legacy layer already names. server/system/portal.go has
+;; SceneOilTanker (5) with portal PortalIDGarageToTanker (6) at (-48, 0) r6 in the garage, landing the player at
+;; (-265, 6, 0), and its own return gate PortalIDTankerToGarage (7) at (292, 0) r13 -> garage (-38, 6, 0). Those
+;; numbers are rows 3 and 6 of gf/modes/portals.prn, unchanged. V1 left row 3's destination at -1 because GF had
+;; no tanker map; this file is that map, and GF scene 6 is the tanker.
+;;
+;; 460 itself had no tanker geometry (protocol.h knows four scenes), so the ship is original work in the same
+;; spirit: a 540-unit tanker at anchor, red hull, grey deck, white accommodation aft, a manifold and hatches on
+;; the foredeck, a crane, containers, rails, four channel buoys, and a stern ladder out of the water.
+;;
+;; ---- the water (faked, and deterministic) ---------------------------------------------------------------
+;; The engine's floor is y 0 (sp_phys resolve-collision clamps there, and that is the parity path, so it stays),
+;; so the sea is a column from the seabed up to ww-sea 12.0. The surface is three travelling sines -- no
+;; integration, no state -- so it is the same everywhere for the same tick, the tests can predict it, and the
+;; renderer, the swimmer and (W2) the boat all read the one function.
+;;
+;; Swimming is a post-step force, not a change to the parity path: sp_sim calls mod-tick! right after
+;; world-step!, and ww-step! pushes a submerged body toward the surface (an overdamped spring), damps it, caps
+;; its speed and turns jump/crouch into a stroke/dive. The engine's own tick is untouched, so 460 parity is
+;; untouched too.
+;;
+;; Rendering: the plane is a 14x14 patch of 80-unit quads that follows the camera, each corner on the wave
+;; function, coloured by crest height and drawn at alpha 190 over a dark seabed quad. That is the whole "water
+;; simulation": it is paint, but it moves, it shades, and it agrees with the physics.
+;;
+;; Memory: box colours go in the construct colour block 0x083000 (V3 reserved it for exactly this, plan §9).
+
+;; ---- the sea ---------------------------------------------------------------------------------------------
+(defn ww-sea [] : F32 12.0)
+(defn ww-bounds [] : F32 320.0)
+(defn ww-crown-y [] : F32 30.0)
+
+;; seconds since the session started; the one clock the waves and the tests share
+(defn ww-t [] : F32 (* (f32 (gi (g-tick))) 0.016))
+
+;; three swells: x 0.009 (period ~700), z 0.014 (~450), the diagonal 0.023 (~270), 1.15 + 0.75 + 0.35 tall
+(defn ww-wave [(x : F32) (z : F32) (t : F32)] : F32
+  (let [(a : F32) (* 1.15 (sinf (+ (* x 0.009) (* t 0.62))))
+        (b : F32) (* 0.75 (sinf (+ (* z 0.014) (* t 0.45))))
+        (c : F32) (* 0.35 (sinf (+ (* (+ x z) 0.023) (* t 0.97))))]
+    (+ a (+ b c))))
+
+(defn ww-surface-at [(x : F32) (z : F32) (t : F32)] : F32 (+ (ww-sea) (ww-wave x z t)))
+
+;; ---- swimming --------------------------------------------------------------------------------------------
+(defn ww-float-depth [] : F32 3.0)   ; feet this far under the surface line when floating (head clear)
+(defn ww-wet-depth [] : F32 0.2)     ; feet lower than surface - this = in the water
+(defn ww-swim-speed [] : F32 0.34)   ; the 460 walk is 0.95
+(defn ww-dive-speed [] : F32 0.22)
+(defn ww-drag [] : F32 0.90)
+(defn ww-stroke-up [] : F32 0.22)
+(defn ww-stroke-down [] : F32 0.18)
+
+(defn ww-wet? [(p : I32) (s : F32)] : Bool (< (p-y p) (- s (ww-wet-depth))))
+
+;; where the body was when this hook last ran: the engine's p-px is only refreshed by the frame loop, not by
+;; sp-t-play, so the water keeps its own (plan §9, 0x084000)
+(defn ww-prev-x [(p : I32)] : F32 (loadf32 (+ (ww-state-base) (* p 16))))
+(defn ww-prev-z [(p : I32)] : F32 (loadf32 (+ (ww-state-base) (+ (* p 16) 4))))
+(defn ww-set-prev! [(p : I32)] : Unit
+  (do (storef32! (+ (ww-state-base) (* p 16)) (p-x p))
+      (storef32! (+ (ww-state-base) (+ (* p 16) 4)) (p-z p))))
+
+;; one body in the water: rise toward the surface, damp, cap, and let jump/crouch be stroke/dive
+(defn ww-swim! [(p : I32)] : Unit
+  (when (and (alive? p) (= (p-net-slot p) 0))
+    (let [(x : F32) (p-x p)
+          (z : F32) (p-z p)
+          (s : F32) (ww-surface-at x z (ww-t))
+          (wet : Bool) (ww-wet? p s)
+          (sj : F32) (if (!= (p-in-jump p) 0) 1.0 0.0)
+          (sc : F32) (if (!= (p-crouching p) 0) 1.0 0.0)]
+      ;; a splash on the way in (the previous frame's feet were still dry)
+      (when (and (> (p-py p) s) (< (p-y p) s)) (fx-sparks! x s z 3 5))
+      (when wet
+        (let [(err : F32) (- (- s (ww-float-depth)) (p-y p))
+              (vy0 : F32) (+ (* (p-vy p) 0.82) (clamp-f (* err 0.09) (- 0.0 0.55) 0.55))
+              (vy : F32) (+ (- vy0 (* sc (ww-stroke-down))) (* sj (ww-stroke-up)))
+              (sp : F32) (len2 (p-vx p) (p-vz p))
+              (cap : F32) (if (!= (p-crouching p) 0) (ww-dive-speed) (ww-swim-speed))
+              (k : F32) (if (> sp cap) (/ cap sp) 1.0)
+              ;; a slow set to the east, so a floating body drifts and the surface reads as alive
+              (drift : F32) (* 0.0018 (sinf (+ (* z 0.02) (* (ww-t) 0.5))))
+              ;; the engine's walk step moves at up to 0.95 before this hook runs, so a stroke ends short:
+              ;; the tick's own displacement is pulled back to the swim cap (toward where it started)
+              (dx : F32) (- (p-x p) (ww-prev-x p))
+              (dz : F32) (- (p-z p) (ww-prev-z p))
+              (step : F32) (len2 dx dz)
+              ;; a step bigger than 4 units is a teleport (a load, a respawn), not a stroke: leave it alone
+              (pull : F32) (cond (> step 4.0) 1.0 (> step cap) (/ cap step) :else 1.0)]
+          (when (< pull 1.0)
+            (do (set-p-x! p (+ (ww-prev-x p) (* dx pull)))
+                (set-p-z! p (+ (ww-prev-z p) (* dz pull)))))
+          (set-p-vy! p (clamp-f vy (- 0.0 0.95) 0.95))
+          (set-p-vx! p (+ (* (* (p-vx p) (ww-drag)) k) drift))
+          (set-p-vz! p (* (* (p-vz p) (ww-drag)) k))
+          (set-p-on-ground! p 0))))))
+
+(defn ww-step! [] : Unit
+  (dotimes [i (max-players)]
+    (when (!= (p-active i) 0)
+      (do (ww-swim! i) (ww-set-prev! i)))))
+
+;; ---- the ship --------------------------------------------------------------------------------------------
+(defn ww-max-boxes [] : I32 127)
+(defn ww-box-count [] : I32 43)
+(defn ww-spawn-count [] : I32 6)
+(defn ww-col-base [] : I32 536576)   ; 0x083000, the construct colour block (plan §9)
+(defn ww-state-base [] : I32 540672) ; 0x084000: per-player previous position (10 x 4 words), plan §9
+
+(defn ww-hull [] : I32 (rgb 128 46 40))
+(defn ww-deck [] : I32 (rgb 104 106 100))
+(defn ww-white [] : I32 (rgb 214 210 198))
+(defn ww-dark [] : I32 (rgb 54 56 62))
+(defn ww-orange [] : I32 (rgb 208 120 48))
+(defn ww-rail [] : I32 (rgb 188 190 184))
+(defn ww-yellow [] : I32 (rgb 214 178 62))
+(defn ww-blue [] : I32 (rgb 44 92 136))
+(defn ww-rust [] : I32 (rgb 150 92 58))
+(defn ww-cream [] : I32 (rgb 226 216 190))
+(defn ww-buoy [] : I32 (rgb 196 62 48))
+(defn ww-step-c [] : I32 (rgb 140 142 136))
+(defn ww-sand [] : I32 (rgb 58 62 54))
+
+(defn ww-push! [(x : F32) (y : F32) (z : F32) (w : F32) (h : F32) (d : F32) (c : I32)] : Unit
+  (let [n (gi (g-box-n))]
+    (when (< n (ww-max-boxes))
+      (map-set-box! n x y z w h d)
+      (store32! (+ (ww-col-base) (shl n 2)) c)
+      (gi! (g-box-n) (+ n 1)))))
+
+;; the tanker: hull from x -242 to 305, beam 88 (z +-44), deck top 20 over a sea line of 12
+(defn ww-init! [] : Unit
+  (do
+    (gi! (g-box-n) 0)
+    ;; box 0 is the engine's floor slab: resolve-collision and draw-arena! both start at 1, so the ship
+    ;; starts at 1 and 0 stays a slab under the seabed
+    (ww-push! 0.0 -4.0 0.0 640.0 4.0 640.0 (ww-sand))        ; 0 slab
+    (ww-push! 30.0 19.0 0.0 540.0 2.0 88.0 (ww-deck))        ; 1 main deck
+    (ww-push! 30.0 9.5 45.0 540.0 21.0 4.0 (ww-hull))        ; 2 port side
+    (ww-push! 30.0 9.5 -45.0 540.0 21.0 4.0 (ww-hull))       ; 3 starboard side
+    (ww-push! -240.0 9.5 0.0 4.0 21.0 88.0 (ww-hull))        ; 4 stern
+    (ww-push! 302.0 9.5 0.0 6.0 21.0 84.0 (ww-hull))         ; 5 bow
+    (ww-push! -180.0 26.0 0.0 34.0 12.0 58.0 (ww-white))     ; 6 accommodation
+    (ww-push! -180.0 32.5 0.0 36.0 1.0 76.0 (ww-white))      ; 7 bridge wings
+    (ww-push! -205.0 36.0 0.0 12.0 8.0 16.0 (ww-dark))       ; 8 funnel
+    (ww-push! -205.0 38.5 0.0 13.0 2.0 17.0 (ww-orange))     ; 9 funnel band
+    (ww-push! -180.0 46.0 0.0 1.5 20.0 1.5 (ww-rail))        ; 10 mast
+    (ww-push! 100.0 21.5 0.0 90.0 3.0 24.0 (ww-orange))      ; 11 manifold
+    (ww-push! 40.0 21.5 22.0 26.0 3.0 20.0 (ww-orange))      ; 12 hatch
+    (ww-push! 40.0 21.5 -22.0 26.0 3.0 20.0 (ww-orange))     ; 13
+    (ww-push! 120.0 21.5 22.0 26.0 3.0 20.0 (ww-orange))     ; 14
+    (ww-push! 120.0 21.5 -22.0 26.0 3.0 20.0 (ww-orange))    ; 15
+    (ww-push! 170.0 30.0 0.0 3.0 20.0 3.0 (ww-yellow))       ; 16 crane mast
+    (ww-push! 194.0 38.0 0.0 44.0 2.0 2.0 (ww-yellow))       ; 17 crane boom
+    (ww-push! 230.0 23.0 30.0 14.0 6.0 12.0 (ww-blue))       ; 18 container
+    (ww-push! 230.0 23.0 -30.0 14.0 6.0 12.0 (ww-blue))      ; 19 container
+    (ww-push! 232.0 29.5 30.0 12.0 7.0 12.0 (ww-rust))       ; 20 container, stacked
+    (ww-push! -140.0 23.0 34.0 12.0 4.0 6.0 (ww-cream))      ; 21 lifeboat
+    (ww-push! 30.0 21.5 43.5 540.0 2.5 1.0 (ww-rail))        ; 22 port rail
+    (ww-push! 30.0 21.5 -43.5 540.0 2.5 1.0 (ww-rail))       ; 23 starboard rail
+    (ww-push! 283.0 21.5 34.0 3.0 3.0 3.0 (ww-dark))         ; 24 bollard
+    (ww-push! 283.0 21.5 -34.0 3.0 3.0 3.0 (ww-dark))        ; 25 bollard
+    (ww-push! 270.0 23.0 0.0 10.0 5.0 14.0 (ww-dark))        ; 26 anchor winch
+    (ww-push! -244.0 12.6 51.0 8.0 1.0 8.0 (ww-step-c))      ; 27 stern ladder, step 1
+    (ww-push! -244.0 14.6 51.0 8.0 1.0 8.0 (ww-step-c))      ; 28 step 2
+    (ww-push! -244.0 16.6 51.0 8.0 1.0 8.0 (ww-step-c))      ; 29 step 3
+    (ww-push! -244.0 18.6 51.0 8.0 1.0 8.0 (ww-step-c))      ; 30 step 4
+    (ww-push! -246.0 11.0 51.0 12.0 1.0 12.0 (ww-step-c))    ; 31 swim platform, at the water line
+    (ww-push! 160.0 10.0 160.0 4.0 8.0 4.0 (ww-buoy))        ; 32 channel buoy
+    (ww-push! -160.0 10.0 160.0 4.0 8.0 4.0 (ww-buoy))       ; 33
+    (ww-push! 160.0 10.0 -160.0 4.0 8.0 4.0 (ww-buoy))       ; 34
+    (ww-push! -160.0 10.0 -160.0 4.0 8.0 4.0 (ww-buoy))      ; 35
+    (ww-push! 160.0 14.5 160.0 5.0 1.0 5.0 (ww-white))       ; 36 buoy cap
+    (ww-push! -160.0 14.5 160.0 5.0 1.0 5.0 (ww-white))      ; 37
+    (ww-push! 160.0 14.5 -160.0 5.0 1.0 5.0 (ww-white))      ; 38
+    (ww-push! -160.0 14.5 -160.0 5.0 1.0 5.0 (ww-white))     ; 39
+    (ww-push! -163.5 25.0 0.0 1.0 3.0 56.0 (ww-dark))        ; 40 bridge windows, forward
+    (ww-push! -180.0 25.0 29.4 32.0 3.0 1.0 (ww-dark))       ; 41 bridge windows, port
+    (ww-push! -180.0 25.0 -29.4 32.0 3.0 1.0 (ww-dark))      ; 42 bridge windows, starboard
+    ;; spawn 0 is the legacy landing (-265, 6, 0): 25 units aft of the stern, in the water
+    (map-set-spawn! 0 -265.0 6.0 0.0)
+    ;; the deck spawns sit a unit above the deck top (20): the 460 collision only lands a body whose previous
+    ;; tick was above the surface it meets, so a spawn exactly ON the deck would be shoved off it
+    (map-set-spawn! 1 -200.0 21.0 0.0)
+    (map-set-spawn! 2 -60.0 21.0 0.0)
+    (map-set-spawn! 3 60.0 21.0 0.0)
+    (map-set-spawn! 4 200.0 21.0 0.0)
+    (map-set-spawn! 5 285.0 21.0 0.0)
+    (map-set-counts! (ww-box-count) (ww-spawn-count))
+    (map-set-crown! 0.0 (ww-crown-y) 0.0)))
+
+;; a box's own colour, or -1 for the engine palette (the ww-init! colour block)
+(defn ww-box-colour [(i : I32)] : I32
+  (if (and (>= i 0) (< i (ww-box-count))) (load32 (+ (ww-col-base) (shl i 2))) -1))
+
+;; ---- drawing: seabed, the sea plane, and the HUD line ------------------------------------------------
+(defn ww-water-colour [(w : F32)] : I32
+  (mix (rgb 14 58 92) (rgb 78 162 186) (clamp-i (i32 (* (+ w 2.2) 56.0)) 0 255)))
+
+(defn ww-quad-sea! [(x0 : F32) (z0 : F32) (x1 : F32) (z1 : F32) (t : F32) (tile : F32)] : Unit
+  (let [(a : F32) (ww-surface-at x0 z0 t)
+        (b : F32) (ww-surface-at x1 z0 t)
+        (c : F32) (ww-surface-at x1 z1 t)
+        (d : F32) (ww-surface-at x0 z1 t)
+        (avg : F32) (* 0.25 (+ (+ a b) (+ c d)))]
+    (set-surface! (ww-water-colour (- avg (ww-sea))) 2 tile tile)
+    (draw-quad! x0 a z0 x1 b z0 x1 c z1 x0 d z1 tile tile)))
+
+(defn ww-draw-sea! [] : Unit
+  (let [(t : F32) (ww-t)
+        (tile : F32) 80.0
+        (n : I32) 14
+        (half : F32) 7.0
+        (ox : F32) (- (* (floor (/ (gf (g-cam-x)) tile)) tile) (* half tile))
+        (oz : F32) (- (* (floor (/ (gf (g-cam-z)) tile)) tile) (* half tile))]
+    (gi! (g-pa) 190)
+    (dotimes [i n]
+      (dotimes [j n]
+        (let [(x0 : F32) (+ ox (* (f32 i) tile))
+              (z0 : F32) (+ oz (* (f32 j) tile))]
+          (ww-quad-sea! x0 z0 (+ x0 tile) (+ z0 tile) t tile))))
+    (gi! (g-pa) 255)))
+
+(defn ww-draw! [] : Unit
+  (do
+    ;; the seabed, opaque, so the arena's floor grid is not the sea floor
+    (gi! (g-pa) 255)
+    (set-surface! (ww-sand) 2 0.0 0.0)
+    (draw-quad! -900.0 0.4 -900.0 900.0 0.4 -900.0 900.0 0.4 900.0 -900.0 0.4 900.0 0.0 0.0)
+    (ww-draw-sea!)))
+
+(defn ww-hud! [(me : I32)] : Unit
+  (let [(s : F32) (ww-surface-at (p-x me) (p-z me) (ww-t))
+        (deep : F32) (- s (p-y me))]
+    (do
+      (panel 238 6 164 30)
+      (draw-text "OIL TANKER" 246 8 1 (ink-faint))
+      (if (ww-wet? me s)
+          (do (draw-text "SWIMMING" 246 18 1 (amber))
+              (draw-int (max-i 1 (i32 deep)) 320 16 2 (ink)))
+          (draw-text "ON DECK" 246 18 2 (ink))))))
