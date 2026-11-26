@@ -1,3 +1,8 @@
+> **This repository is GF** (`github.com/emilyspringerton/GF`): SHANKPIT rewritten in PARENA, starting from release `460`, with a
+> physics playground. It was forked from `garyredg/SPGF`, Gary's clean-room PARENA rebuild of SHANKPIT; his history is kept and his
+> remote is `gary`. **Plan of record: [`docs/GF_REWRITE_PLAN.md`](docs/GF_REWRITE_PLAN.md). Agents start at [`FREEBUFF.md`](FREEBUFF.md).**
+> The new game lives in `gf/`. `scripts/gf_test.sh` is the bar. The text below this box describes SHANKPIT as it was when it was forked.
+
 # SHANKPIT — UDP FPS + DragonsNShit Persistent World
 
 SHANKPIT is a server-authoritative fast-paced FPS with a persistent world backend. The FPS

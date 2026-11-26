@@ -1,3 +1,20 @@
+## 2026-11-26
+
+- **GF: the rewrite starts from release 460** (founder: "start with shankpit 460 and add features from there ... lets get the menu
+  system survival mode queue mode and engine stuff figured out first ... set up like gary's mod ... like goat simulator").
+  `garyredg/SPGF` was pushed, with its full history, to `emilyspringerton/GF` (plus the `460` tag). New:
+  - `gf/engine/`: the PARENA 460 engine (from PARENA `ee07efe`), with its mod surface.
+  - `gf/modes/survival/`: SURVIVAL as a level plus mods.
+  - `gf/ref/`: the 460 C reference headers and the arena map.
+  - `gf/tests/`: parity, engine, soak and survival.
+  - `scripts/gf_build.sh` and `scripts/gf_test.sh`: verified here. Parity: 40 scenarios, worst 5e-7 against the 460 C engine. Engine
+    73/73, soak ok, survival 31/31.
+  - `docs/GF_REWRITE_PLAN.md`: the plan of record (decisions D1-D8, tasks G/E/M/S/Q/P/A with acceptance tests, the order of work, the
+    memory map).
+  - `FREEBUFF.md`: an agent's start-here page.
+  - `docs/QUESTIONS.md`: open questions for the founder.
+  Gary's clean-room layer is untouched (decision D7). (sess-20261126-1643-452c2f1a)
+
 ## 2026-11-05
 
 - **feat(sim): a character mod's shield curve reaches the C host, and the regen has a real test target (`make test-shield-regen`).** Two limits from the same day's work, closed. **(1) THE HOST HOOK.** `shield_regen.h` grew `ShieldRegenAmountHook` + `shield_regen_set_amount_hook`, the same shape `physics.h` already uses for job stats: PARENA owns the default curve, the host decides which body overrides it. The hook is asked per ramp step (0..cap) and the last step repeats beyond the cap, so a mod cannot make the per-tick cost unbounded; returning <= 0 falls through to the rule, and with no hook installed the tick still uses the closed form, so the default path is byte-identical to before. `shambler_mod.prn`'s flat one-point curve is the test's example. **(2) THE TEST.** `packages/simulation/shield_regen_test.c` + `mk/shield_regen.mk`'s `test-shield-regen`: the REAL `PlayerState` and the REAL generated `shield_rules.c`, 34 headless checks -- the 4000 ms boundary, the ramp, a hit restarting the clock, a repeated call banking nothing, missed ticks catching up (**36 points after 8 landed ticks**, not one per call), the clamp, the spawn reset, a floored negative shield, a stale anchor staying inside the bar, the mod hook (flat, no-opinion, and a hook that repeats the rule agreeing with the closed form below the clamp), and the HUD's tenths/permille. First run: three checks failed and all three were the TEST's arithmetic (it counted seconds where the rule counts landed ticks), not the implementation -- expectations fixed and rerun. **HUD, honestly:** `shield_regen_counter_tenths` and `shield_regen_bar_permille` give a renderer the countdown and the fill without knowing the cap, but `apps/lobby/src/main.c` (the only draw code in this repo) is still absent from this header-only tree (`45a4eda`), so nothing draws it here.

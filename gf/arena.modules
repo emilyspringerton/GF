@@ -1,0 +1,22 @@
+# gf/arena.modules -- the 460 arena with no mods (the parity build). Paths are relative to the GF checkout; ../PARENA is the sibling compiler checkout.
+gf/engine/sp_mem.prn
+gf/engine/sp_fields.prn
+gf/engine/sp_map.prn
+gf/engine/sp_map_data.prn
+gf/engine/sp_map_w77.prn
+gf/engine/sp_map_dust.prn
+gf/engine/sp_phys.prn
+gf/engine/sp_fx.prn
+gf/engine/sp_net.prn
+gf/engine/sp_ai.prn
+gf/engine/sp_gfx.prn
+gf/engine/sp_3d.prn
+gf/engine/sp_view.prn
+gf/engine/sp_input.prn
+gf/engine/sp_hud.prn
+gf/engine/sp_sim.prn
+gf/engine/sp_rules.prn
+gf/engine/sp_ui.prn
+gf/engine/sp_mods.prn
+gf/engine/sp_main.prn
+../PARENA/stdlib/gfd/term_font.prn
