@@ -125,6 +125,8 @@ Each task lists: **what** · **files** · **done when** (the acceptance test).
   `engine_test` and `soak` when it is run against `gf.wasm`.
 - **G3 Mode registry.** `gf/modes/modes.prn`: a table of mode id, name, a one-line description, a start function and whether it needs the
   network. The menu (M1) reads only this table. Done when the menu lists modes from the table, with no hard-coded mode strings in `gf/menu/`.
+  *(Landed ahead of M1: the table, `gf-mode-*` words and `gf-mode-start(i)` are in, and `gf/tests/modes_test.mjs` starts every row and
+  fails on a mode name hard-coded anywhere under `gf/`. M1 is the menu that has to consume it.)*
 - **G4 Settings block.** A memory region (§9) of persisted settings: sensitivity, FOV, invert-Y, bot level, player name, volume, last mode.
   Two exports, `gf_settings_addr` and `gf_settings_len`; hosts save and load the bytes (browser `localStorage`, Android SharedPreferences
   through the bridge, a file on native). Done when a test round-trips the block and the game reads it at `sp_init`.
@@ -325,7 +327,7 @@ a time with the founder.
 ## 8. Order of work (take the first open one)
 
 Milestone 1, **one game, three modes** (offline):
-- [x] G1 (`cb40a46`) · [ ] G2 · [ ] S1 · [ ] G3 · [ ] M1 · [ ] M2 · [ ] G4 · [ ] G5/M3 · [ ] M4 · [ ] P1 (field only) · [ ] E5 · [ ] A2
+- [x] G1 (`cb40a46`) · [x] G2 (`58f83b1`) · [x] S1 (`58f83b1`) · [x] G3 (`edadd8f`) · [ ] M1 · [ ] M2 · [ ] G4 · [ ] G5/M3 · [ ] M4 · [ ] P1 (field only) · [ ] E5 · [ ] A2
 
 Milestone 2, **native desktop**:
 - [ ] E0 (in PARENA) · [ ] E1 · [ ] E2 · [ ] E4 · [ ] A3
