@@ -405,7 +405,7 @@ Milestone 6, **the construct, portals and voxworld**:
 - [x] V1 (`06c7cca`) · [x] V2 (`8bed6d6`) · [x] V3 (`c3886a8`) · [ ] V4 · [ ] V5 · [ ] V6
 
 Milestone 7, **ships and water** (the tanker off the Osaka garage):
-- [x] W1 (`608cb5f`) · [ ] W2
+- [x] W1 (`608cb5f`) · [x] W2 (`79a3477`)
 
 Ships to phones:
 - [ ] A1 (after Milestone 1) · [ ] M5
