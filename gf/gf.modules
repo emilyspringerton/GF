@@ -24,5 +24,6 @@ gf/engine/sp_ui.prn
 gf/modes/survival/sv_city.prn
 gf/modes/survival/sv_mod.prn
 gf/modes/router.prn
+gf/modes/modes.prn
 gf/engine/sp_main.prn
 ../PARENA/stdlib/gfd/term_font.prn

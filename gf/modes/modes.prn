@@ -1,0 +1,32 @@
+;; gf/modes/modes.prn -- the mode registry: the one table the menu reads (G3).
+;;
+;; A row is a g-gf-mode id, the name, a one-line description, whether starting it needs the network, and a start function
+;; (a case on the id: PARENA has no function pointers). The ids are the router's (gf/modes/router.prn, plan §9):
+;;   0 arena, 1 survival, 2 playground (no implementation yet), 3 queue.
+;;
+;; To add a mode: add its row here, the id to gf-mode-set's switch in the router, and its *-mod-* implementations. No menu
+;; file changes: gf/menu/ must not contain a mode name of its own (asserted by gf/tests/modes_test.mjs).
+;;
+;; Rows are in the order the PLAY page shows them: the offline games first, the networked one last.
+
+(defn gf-mode-count [] : I32 3)
+
+;; row index -> g-gf-mode id
+(defn gf-mode-id [(i : I32)] : I32 (case i 0 0 1 1 2 3 -1))
+(defn gf-mode-name [(i : I32)] : String
+  (case i 0 "BOT MATCH" 1 "SURVIVAL" 2 "QUEUE" ""))
+(defn gf-mode-desc [(i : I32)] : String
+  (case i
+    0 "eight bots, first to the kill limit"
+    1 "the city, wave after wave"
+    2 "a bot match while a human match is found"
+    ""))
+(defn gf-mode-needs-net [(i : I32)] : I32 (case i 2 1 0))
+
+;; start a row: 0 is an offline bot match, 1 runs the mode's own begin (sv-mod-begin! -> sv-start!), and 3 is the 460
+;; matchmaking flow -- a bot match now, and the host opens the socket (sp_net.prn) while you search.
+(defn gf-mode-start [(i : I32)] : Unit
+  (case (gf-mode-id i)
+    1 (do (gf-mode-set 1) (begin-session!))
+    3 (do (gf-mode-set 3) (begin-session!))
+    (do (gf-mode-set 0) (gi! (g-want-queue) 0) (start-bot-match!))))

@@ -1,5 +1,13 @@
 ## 2026-11-26
 
+- **G3: the mode registry.** `gf/modes/modes.prn` is the table the menu (M1) will read and the only place the modes are named:
+  three rows -- BOT MATCH (id 0), SURVIVAL (id 1), QUEUE (id 3) -- each with a one-line description, whether starting it needs the
+  network, and a start function. PARENA has no function pointers, so the table is `gf-mode-count`, `gf-mode-id/name/desc/needs-net`
+  and `gf-mode-start(i)`, whose case starts the row (offline bot match, the mode's own begin, or the 460 matchmaking flow).
+  `gf/tests/modes_test.mjs` (16 checks) asserts the table, reads the names back out of wasm memory, starts every row and re-starts
+  row 0 afterwards, and fails if `gf/engine/` or a future `gf/menu/` hard-codes a mode name. The PLAYGROUND row is deliberately
+  absent: id 2 has no implementation yet. Not tested on a device; headless wasm only. (session: freebuff-20261126)
+
 - **G2: the mode router, and SURVIVAL behind it (S1).** One `gf.wasm` now boots into the arena and switches modes at runtime. A new
   global `g-gf-mode` (G 640: 0 arena, 1 survival, 2 playground, 3 queue) is read by all 14 `mod-*` hooks in `gf/modes/router.prn`:
   mode 1 calls SURVIVAL's `sv-mod-*`, every other id gets the arena's no-op / `true` / 420-bounds answer, so the parity path is

@@ -7,8 +7,9 @@ The plan of record is `../docs/GF_REWRITE_PLAN.md`.
 | `engine/` | The 460 engine in PARENA: physics (parity-tested against the 460 C engine, worst 5e-7), bots, a 640x360 software renderer, HUD, input, screens, the 460 matchmaking client, and the mod surface (`sp_mods.prn`). Copied from `PARENA/stdlib/shankpit460` at PARENA `ee07efe`; it evolves here now. |
 | `modes/survival/` | SURVIVAL as a level (`sv_city.prn`) plus mods (`sv_mod.prn`) |
 | `modes/router.prn` | Owns the engine's 14 `mod-*` hooks, routes them on `g-gf-mode`, and exports `gf-mode` / `gf-mode-set` |
+| `modes/modes.prn` | The mode registry (id, name, description, needs-network, start) the menu reads |
 | `ref/` | The 460 C reference used by the parity test (see `ref/README.md`) |
-| `tests/` | parity, engine, soak, survival, router |
+| `tests/` | parity, engine, soak, survival, router, modes |
 | `gf.modules` | The unified build: engine + every mode + router + `sp_main` |
 | `arena.modules` | The parity build (no router, no modes) |
 

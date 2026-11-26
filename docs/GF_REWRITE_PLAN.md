@@ -374,7 +374,7 @@ Claimed by GF:
 | Range | Owner |
 |---|---|
 | G words 600..639 | survival (`sv_mod.prn`) |
-| G words 640..659 | router and menu (G2/M1; reserve) |
+| G words 640..659 | router and menu: 640 is `g-gf-mode` (G2), 641..659 reserved for M1 |
 | G words 660..699 | queue (Q; reserve) |
 | G words 700..759 | playground (P; reserve) |
 | `0x080000`..`0x081FFF` | survival region (box colours, guns, chests, per-slot) |
@@ -389,7 +389,7 @@ E3 moves the engine's own regions: update this table in the same commit.
 | Path | What |
 |---|---|
 | `gf/engine/` | The 460 engine in PARENA (parity path: `sp_phys`, `sp_sim` `world-step!`, `sp_map*`) |
-| `gf/modes/survival/` | SURVIVAL (`sv_city.prn` = the level, `sv_mod.prn` = the mods) |
+| `gf/modes/` | The router (`router.prn`), the mode registry (`modes.prn`, G3) and SURVIVAL (`survival/`: `sv_city.prn` = the level, `sv_mod.prn` = the mods) |
 | `gf/ref/c460/` | The 460 C reference headers (parity) · `gf/ref/parity_ref.c` · `gf/ref/v0_shankpit.map` |
 | `gf/tests/` | parity, engine, soak, survival (node) |
 | `gf/*.modules` | Build manifests (file lists, in order) |
