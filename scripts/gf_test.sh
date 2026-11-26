@@ -6,6 +6,9 @@
 #   survival: SURVIVAL played headlessly (city, waves, zombies, pickups, chests, death, AGAIN)
 #   router  : one gf.wasm starts a bot match and a survival run in the same session (G2)
 #   modes   : the G3 registry is the only place the modes are named, and each row starts its mode
+#   portals : V1, the Osaka garage portal ring is the legacy layer's table and it triggers
+#   voxworld: V2, the garage and VOXWORLD are the 460 geometry, box for box
+#   construct: V3, the garage -> voxworld construct with one bot per viewer
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
@@ -20,3 +23,4 @@ echo "== soak (unified gf.wasm)";   node gf/tests/bot_soak.mjs "$W/gf.wasm" 1200
 echo "== survival (unified gf.wasm)"; node gf/tests/survival_test.mjs "$W/gf.wasm" | tail -1
 echo "== router (arena + survival, one session)"; node gf/tests/router_test.mjs "$W/gf.wasm" | tail -1
 echo "== modes (the G3 table)"; node gf/tests/modes_test.mjs "$W/gf.wasm" | tail -1
+echo "== portals (the Osaka garage ring)"; node gf/tests/portals_test.mjs "$W/gf.wasm" | tail -1

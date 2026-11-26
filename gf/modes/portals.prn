@@ -1,0 +1,81 @@
+;; gf/modes/portals.prn -- the legacy Osaka garage portal ring, as data (V1).
+;;
+;; Authority: the live legacy layer, server/system/portal.go (ScenePortals / ResolvePortalDestination) and
+;; gf/ref/c460/packages/common/physics.h (PORTAL_ID_*, GARAGE_PORTAL_*, VOXWORLD_PORTAL_*). The numbers here
+;; are those tables, row for row, so a mode can put the garage in front of a player without re-deriving them.
+;;
+;; Scenes are GF map ids (g-map-id): 0 arena (the legacy layer calls it STADIUM), 2 dust compound,
+;; 4 garage Osaka, 5 voxworld. A legacy scene GF has no map for yet -- Oil Tanker (legacy 5), Poo Poo
+;; Island (legacy 6) -- has destination scene -1: the portal row is present so the garage's layout is
+;; complete, and a caller sees "this exit is not built" instead of being teleported into empty memory.
+;;
+;; Rows, not per-scene tables: PARENA has no arrays of records, and a case on a row index is what the mode
+;; registry already does. Rows 0..4 are the garage's five exits; row 5 is the voxworld end of the ring.
+;;
+;; A portal is a circle on the floor (x, z, radius), exactly as PortalTriggered tests it: squared distance
+;; <= radius squared, so the boundary is inclusive.
+
+(defn portal-rows [] : I32 6)
+
+(defn portal-row-scene [(i : I32)] : I32 (if (< i 5) 4 5))
+(defn portal-row-id [(i : I32)] : I32 (case i 0 0 1 3 2 4 3 6 4 8 2))
+(defn portal-row-x [(i : I32)] : F32
+  (case i 0 0.0 1 48.0 2 -48.0 3 -48.0 4 52.0 -360.0))
+(defn portal-row-z [(i : I32)] : F32
+  (case i 0 56.0 1 0.0 2 -12.0 3 0.0 4 -24.0 0.0))
+(defn portal-row-r [(i : I32)] : F32
+  (case i 0 6.0 1 6.5 2 6.0 3 6.0 4 6.5 16.0))
+
+;; where it goes (scene, and the landing point inside it)
+(defn portal-row-dest-scene [(i : I32)] : I32 (case i 0 0 1 5 2 2 3 -1 4 -1 0))
+(defn portal-row-dest-x [(i : I32)] : F32
+  (case i 0 0.0 1 -420.0 2 -430.0 3 0.0 4 0.0 386.0))
+(defn portal-row-dest-y [(i : I32)] : F32
+  (case i 0 8.0 1 8.0 2 9.0 3 6.0 4 10.0 2.0))
+(defn portal-row-dest-z [(i : I32)] : F32
+  (case i 0 0.0 1 180.0 2 -210.0 3 0.0 4 0.0 0.0))
+
+(defn portal-scene-name [(scene : I32)] : String
+  (case scene 0 "ARENA" 2 "DUST" 4 "GARAGE" 5 "VOXWORLD" ""))
+
+;; the portal id at (x, z) in `scene`, or -1. First row wins, as PortalTriggered returns the first hit.
+(defn portal-at [(scene : I32) (x : F32) (z : F32)] : I32
+  (let [hit -1]
+    (dotimes [i (portal-rows)]
+      (when (and (= hit -1) (= (portal-row-scene i) scene))
+        (let [(dx : F32) (- x (portal-row-x i))
+              (dz : F32) (- z (portal-row-z i))
+              (r : F32) (portal-row-r i)]
+          (when (<= (+ (* dx dx) (* dz dz)) (* r r)) (set! hit (portal-row-id i))))))
+    hit))
+
+;; is there a row for this scene at all (a mode uses it to decide whether to run the check)
+(defn portal-scene-has? [(scene : I32)] : Bool
+  (let [yes false]
+    (dotimes [i (portal-rows)] (when (= (portal-row-scene i) scene) (set! yes true)))
+    yes))
+
+;; the row a (scene, id) pair names, or -1. Used by the destination accessors below.
+(defn portal-find [(scene : I32) (id : I32)] : I32
+  (let [row -1]
+    (dotimes [i (portal-rows)]
+      (when (and (= row -1) (= (portal-row-scene i) scene) (= (portal-row-id i) id)) (set! row i)))
+    row))
+
+(defn portal-dest-scene [(scene : I32) (id : I32)] : I32
+  (let [row (portal-find scene id)]
+    (if (< row 0) -1 (portal-row-dest-scene row))))
+(defn portal-dest-x [(scene : I32) (id : I32)] : F32
+  (let [row (portal-find scene id)] (if (< row 0) 0.0 (portal-row-dest-x row))))
+(defn portal-dest-y [(scene : I32) (id : I32)] : F32
+  (let [row (portal-find scene id)] (if (< row 0) 0.0 (portal-row-dest-y row))))
+(defn portal-dest-z [(scene : I32) (id : I32)] : F32
+  (let [row (portal-find scene id)] (if (< row 0) 0.0 (portal-row-dest-z row))))
+
+;; ---- the garage's vehicle pads (physics.h garage_vehicle_pads) -------------------------------
+;; Three marked pads on the garage floor. 460 had no vehicle bodies -- "in_vehicle" was a speed
+;; class, not an entity -- so this is the parking layout the construct places them on when V5 lands.
+(defn garage-pad-count [] : I32 3)
+(defn garage-pad-x [(i : I32)] : F32 (case i 0 -30.0 1 0.0 30.0))
+(defn garage-pad-z [(i : I32)] : F32 -30.0)
+(defn garage-pad-label [(i : I32)] : String (case i 0 "FOXBODY '93" 1 "LANDSHIP" 2 "RESERVED" ""))

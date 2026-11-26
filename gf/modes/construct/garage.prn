@@ -1,0 +1,51 @@
+;; gf/modes/construct/garage.prn -- Osaka garage, the legacy hub, as engine boxes (V1).
+;;
+;; Geometry is gf/ref/c460/packages/common/physics.h map_geo_garage, in the same order and with the same
+;; 18 numbers: floor, the pit under it, ceiling, the four inner walls and the four outer walls, the roof
+;; slabs, the doorway frame at z 52, and the two crates. Spawns are scene_spawn_point(SCENE_GARAGE_OSAKA):
+;; five pads at y 2, z 20. The portals are data in gf/modes/portals.prn, not boxes.
+;;
+;; The engine's map region holds 128 boxes (sp_mem.prn); the garage needs 18 and the voxworld 107, so a
+;; mode switches between them by rebuilding, exactly as SURVIVAL builds its city (sv_city.prn).
+
+(defn garage-box-count [] : I32 18)
+(defn garage-max-boxes [] : I32 127)
+
+(defn garage-push! [(x : F32) (y : F32) (z : F32) (w : F32) (h : F32) (d : F32)] : Unit
+  (let [n (gi (g-box-n))]
+    (when (< n (garage-max-boxes))
+      (map-set-box! n x y z w h d)
+      (gi! (g-box-n) (+ n 1)))))
+
+(defn garage-init! [] : Unit
+  (do
+    (gi! (g-box-n) 0)
+    (garage-push! 0.0 -2.0 0.0 160.0 4.0 160.0)
+    (garage-push! 0.0 -8.0 0.0 170.0 2.0 170.0)
+    (garage-push! 0.0 18.0 0.0 160.0 4.0 160.0)
+    (garage-push! 60.0 9.0 0.0 4.0 18.0 160.0)
+    (garage-push! -60.0 9.0 0.0 4.0 18.0 160.0)
+    (garage-push! 0.0 9.0 60.0 160.0 18.0 4.0)
+    (garage-push! 0.0 9.0 -60.0 160.0 18.0 4.0)
+    (garage-push! 64.0 9.0 0.0 4.0 22.0 170.0)
+    (garage-push! -64.0 9.0 0.0 4.0 22.0 170.0)
+    (garage-push! 0.0 9.0 64.0 170.0 22.0 4.0)
+    (garage-push! 0.0 9.0 -64.0 170.0 22.0 4.0)
+    (garage-push! 0.0 21.0 64.5 174.0 2.0 6.0)
+    (garage-push! 0.0 21.0 -64.5 174.0 2.0 6.0)
+    (garage-push! 64.5 21.0 0.0 6.0 2.0 174.0)
+    (garage-push! -64.5 21.0 0.0 6.0 2.0 174.0)
+    (garage-push! 0.0 9.0 52.0 14.0 12.0 2.0)
+    (garage-push! -10.0 5.0 -20.0 12.0 4.0 12.0)
+    (garage-push! 10.0 5.0 -20.0 12.0 4.0 12.0)
+    (map-set-spawn! 0 -20.0 2.0 20.0)
+    (map-set-spawn! 1 0.0 2.0 20.0)
+    (map-set-spawn! 2 20.0 2.0 20.0)
+    (map-set-spawn! 3 -10.0 2.0 20.0)
+    (map-set-spawn! 4 10.0 2.0 20.0)
+    (map-set-counts! (garage-box-count) 5)
+    (map-set-crown! 0.0 12.0 0.0)))
+
+;; garage envelope (physics.h GARAGE_BOUNDS_*); the pit is below the playable floor
+(defn garage-bounds [] : F32 70.0)
+(defn garage-kill-y [] : F32 -30.0)
