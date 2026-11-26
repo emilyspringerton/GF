@@ -24,3 +24,4 @@ echo "== survival (unified gf.wasm)"; node gf/tests/survival_test.mjs "$W/gf.was
 echo "== router (arena + survival, one session)"; node gf/tests/router_test.mjs "$W/gf.wasm" | tail -1
 echo "== modes (the G3 table)"; node gf/tests/modes_test.mjs "$W/gf.wasm" | tail -1
 echo "== portals (the Osaka garage ring)"; node gf/tests/portals_test.mjs "$W/gf.wasm" | tail -1
+echo "== voxworld (garage + voxworld geometry)"; node gf/tests/voxworld_test.mjs "$W/gf.wasm" | tail -1

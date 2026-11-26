@@ -1,0 +1,67 @@
+;; gf/modes/construct/voxworld.prn -- the OG VOXWORLD city, as engine boxes (V2).
+;;
+;; Authority: gf/ref/c460/packages/common/physics.h init_voxworld_city_geo (tag 460 + the shankpit-460
+;; fixes). Same seed (1337), same block/road/pitch (220/50/270), same 9 x 9 grid, same skip of the central
+;; cross, same sin/cos noise, same second "annex" box on every third cell. That is 5 boundary slabs + 75
+;; blocks + 27 annexes = 107 boxes, under the engine's 128-box map region.
+;;
+;; This is the 460 voxworld, which is a walled box city -- NOT the later OG heightfield terrain. Terrain
+;; and vehicle bodies are V4/V5 in the plan, not this file; see docs/GF_REWRITE_PLAN.md.
+;;
+;; Spawns and the portal are physics.h scene_spawn_point(SCENE_VOXWORLD) and VOXWORLD_PORTAL_*: five pads
+;; at y 6 on z 0, and the ring portal at (-360, 2, 0). Bounds are VOXWORLD_BOUNDS_*.
+
+(defn vx-seed [] : I32 1337)
+(defn vx-block [] : F32 220.0)
+(defn vx-road [] : F32 50.0)
+(defn vx-pitch [] : F32 270.0)
+(defn vx-box-count [] : I32 107)
+(defn vx-max-boxes [] : I32 127)
+(defn vx-bounds [] : F32 1180.0)
+(defn vx-kill-y [] : F32 -120.0)
+
+(defn vx-push! [(x : F32) (y : F32) (z : F32) (w : F32) (h : F32) (d : F32)] : Unit
+  (let [n (gi (g-box-n))]
+    (when (< n (vx-max-boxes))
+      (map-set-box! n x y z w h d)
+      (gi! (g-box-n) (+ n 1)))))
+
+(defn vx-cell! [(gx : I32) (gz : I32)] : Unit
+  (when (not (or (and (<= (abs-i gx) 1) (= gz 0))
+                 (and (<= (abs-i gz) 1) (= gx 0))))
+    (let [(cx : F32) (* (f32 gx) (vx-pitch))
+          (cz : F32) (* (f32 gz) (vx-pitch))
+          (n1 : F32) (sinf (* (f32 (+ (+ (* gx 17) (* gz 31)) (vx-seed))) 0.13))
+          (n2 : F32) (cosf (* (f32 (+ (- (* gx 11) (* gz 23)) (vx-seed))) 0.19))
+          (h : F32) (+ (+ 24.0 (* (+ n1 1.0) 28.0)) (* (+ n2 1.0) 18.0))
+          (w : F32) (+ 35.0 (* (fabs n1) 45.0))
+          (d : F32) (+ 35.0 (* (fabs n2) 45.0))]
+      (vx-push! cx (* h 0.5) cz w h d)
+      (when (= (mod (+ gx gz) 3) 0)
+        (vx-push! (+ cx (* 0.35 (vx-block))) (* h 0.35) (- cz (* 0.3 (vx-block)))
+                  (* w 0.55) (* h 0.7) (* d 0.55))))))
+
+(defn voxworld-init! [] : Unit
+  (do
+    (gi! (g-box-n) 0)
+    (vx-push! 0.0 -2.0 0.0 2800.0 4.0 2800.0)
+    (vx-push! 0.0 100.0 1400.0 2800.0 200.0 8.0)
+    (vx-push! 0.0 100.0 -1400.0 2800.0 200.0 8.0)
+    (vx-push! 1400.0 100.0 0.0 8.0 200.0 2800.0)
+    (vx-push! -1400.0 100.0 0.0 8.0 200.0 2800.0)
+    ;; the C loop is gx outer, gz inner (init_voxworld_city_geo), so the box order matches it too
+    (dotimes [i 81]
+      (vx-cell! (- (/ i 9) 4) (- (mod i 9) 4)))
+    (map-set-spawn! 0 -120.0 6.0 0.0)
+    (map-set-spawn! 1 -60.0 6.0 0.0)
+    (map-set-spawn! 2 0.0 6.0 0.0)
+    (map-set-spawn! 3 60.0 6.0 0.0)
+    (map-set-spawn! 4 120.0 6.0 0.0)
+    (map-set-counts! (vx-box-count) 5)
+    (map-set-crown! 0.0 90.0 0.0)))
+
+;; VOXWORLD_PORTAL_* (physics.h): the ring portal back toward the stadium, in this scene
+(defn vx-portal-x [] : F32 -360.0)
+(defn vx-portal-y [] : F32 2.0)
+(defn vx-portal-z [] : F32 0.0)
+(defn vx-portal-r [] : F32 16.0)
