@@ -446,7 +446,7 @@ Claimed by GF:
 
 | Range | Owner |
 |---|---|
-| G words 600..639 | survival (`sv_mod.prn`) |
+| G words 600..639 | survival (`sv_mod.prn`; 622..627 are the trees/wood/barricades of `sv_trees.prn`) |
 | G words 640..659 | router and menu: 640 is `g-gf-mode` (G2), 641..659 reserved for M1 |
 | G words 660..699 | queue (Q; reserve) |
 | G words 700..759 | playground (P; reserve) |

@@ -1,5 +1,12 @@
 ## 2026-11-26
 
+- **feat(gf): SURVIVAL trees and wood** (`gf/modes/survival/sv_trees.prn`, rules from `../PARENA/stdlib/shankpit/tree_rules.prn`):
+  - a forest grows ring by ring outward from the spawn, at most 48 trees, keeping 16 boxes free for barricades;
+  - trunks are colliding map boxes, so bullets stop on them and zombies steer round them;
+  - chopping is on the shot ray, with a log per hit plus a fell bonus;
+  - a felled tree leaves a stump and grows back;
+  - the WOOD HUD, and B / pad Y builds a barricade for 5 wood.
+  `gf/tests/survival_test.mjs` 40/40 (+9 tree checks). Frame about 10 ms here (was 7): budget task E5. (sess-20261126-1643-452c2f1a)
 - **feat(gf): W3 the launch collides with the ship and the buoys (`boat_test` 28).** W2's launch drove through the tanker and
   the channel marks, which was honest to write down but no way to test ship physics. The hull now tests the map's own boxes --
   the tanker's sides, the buoys, the ladder -- with three samples down her centreline (stern, midships, bow), each a disc of

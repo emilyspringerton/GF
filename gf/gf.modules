@@ -21,8 +21,10 @@ gf/engine/sp_rules.prn
 gf/engine/sp_ui.prn
 ../PARENA/stdlib/shankpit/survival_rules.prn
 ../PARENA/stdlib/shankpit/chest_rules.prn
+../PARENA/stdlib/shankpit/tree_rules.prn
 gf/modes/survival/sv_city.prn
 gf/modes/survival/sv_mod.prn
+gf/modes/survival/sv_trees.prn
 gf/modes/portals.prn
 gf/modes/construct/garage.prn
 gf/modes/construct/voxworld.prn
