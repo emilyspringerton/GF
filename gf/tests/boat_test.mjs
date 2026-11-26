@@ -91,17 +91,38 @@ for (let i = 0; i < 30; i++) x.sp_t_play(1);
 ok(x.wb_speed() < 0 && x.wb_speed() >= -x.wb_reverse() - 0.001, `astern works, and is slower than ahead (${sp0.toFixed(2)} then ${x.wb_speed().toFixed(2)})`);
 ctl(false, false, false, false);
 
+// ---- she collides with the ship ------------------------------------------------------------------------------------------------
+// moored north of the tanker, bows to the north (-z): full ahead puts her into the starboard side at z 45
+x.wb_place_bang(250, 250, 0);
+ctl(false, false, false, false);
+for (let i = 0; i < 40; i++) x.sp_t_play(1);
+ctl(true, false, false, false);
+for (let i = 0; i < 260; i++) x.sp_t_play(1);
+ok(x.wb_z() > 44, `the hull does not drive through the tanker (z ${x.wb_z().toFixed(1)}, side at 45)`);
+ok(x.wb_z() < 90, `she is stopped against it, not still running (z ${x.wb_z().toFixed(1)})`);
+ok(Math.abs(x.wb_speed()) < 0.4, `and she has lost her way (speed ${x.wb_speed().toFixed(2)})`);
+ctl(false, false, false, false);
+
+// ---- and with a channel buoy ---------------------------------------------------------------------------------------------------
+x.wb_place_bang(160, 250, 0);
+for (let i = 0; i < 40; i++) x.sp_t_play(1);
+ctl(true, false, false, false);
+for (let i = 0; i < 120; i++) x.sp_t_play(1);
+ok(x.wb_z() > 160, `the buoy at (160, 160) is solid too (z ${x.wb_z().toFixed(1)})`);
+ok(x.wb_z() < 190, 'and she pulls up beside it');
+ctl(false, false, false, false);
+
 // ---- the sea keeps her in -------------------------------------------------------------------------------------------------------
-x.wb_place_bang(305, 0);
-x.sp_t_poke(G.cmdFwd, 0x3f800000);
-for (let i = 0; i < 60; i++) x.sp_t_play(1);
+x.wb_place_bang(250, 300, 90);
+x.sp_t_poke(G.cmdFwd, 0xbf800000);   // astern, away from the ship, into the edge
+for (let i = 0; i < 80; i++) x.sp_t_play(1);
 const lim = x.ww_bounds() - 12;
-ok(Math.abs(x.wb_x()) <= lim + 0.001 && Math.abs(x.wb_z()) <= lim + 0.001,
-  `she runs up to the edge of the sea and stops there (${x.wb_x().toFixed(1)}, ${x.wb_z().toFixed(1)}; limit ${lim})`);
+ok(Math.abs(x.wb_z()) <= lim + 0.001 && Math.abs(x.wb_x()) <= lim + 0.001,
+  `and the edge of the sea holds her (${x.wb_x().toFixed(1)}, ${x.wb_z().toFixed(1)}; limit ${lim})`);
 ctl(false, false, false, false);
 
 // ---- stepping off (back in open water: the launch does not collide with the ship's boxes yet) --------------------------------
-x.wb_place_bang(x.wb_home_x(), x.wb_home_z());
+x.wb_place_bang(x.wb_home_x(), x.wb_home_z(), 90);
 x.sp_t_play(1);
 ok(Math.abs(pf(0, 'x') - x.wb_x()) < 2.5 && Math.abs(pf(0, 'z') - x.wb_z()) < 2.5, 'moved by hand, the hull still carries its rider');
 ctl(false, false, false, true);
@@ -117,6 +138,14 @@ ok(Math.hypot(pf(0, 'x') - px, pf(0, 'z') - pz) < 20, 'the swimmer stays in the 
 let drew = true;
 try { x.sp_t_render_world(x.wb_x(), x.wb_y() + 8, x.wb_z() + 20, 0, -20); } catch (e) { drew = false; console.log('  render trap: ' + e.message); }
 ok(drew, 'rendering the launch does not trap');
+
+// the hull test itself: open water is free, the ship's side is not
+x.gf_mode_set(4);
+x.gf_mode_start(3);
+x.sp_t_place(0, -48, 2, 0, 0, 0);
+x.sp_t_play(1);
+ok(x.wb_blocked_p(0, 200, 90, 12) === 0, 'a point in open water is not blocked');
+ok(x.wb_blocked_p(0, 45, 90, 12) === 1, "and the tanker's side is");
 
 // ---- leaving the mode clears it ----------------------------------------------------------------------------------------------------
 x.gf_mode_set(0);

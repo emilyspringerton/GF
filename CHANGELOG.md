@@ -1,5 +1,15 @@
 ## 2026-11-26
 
+- **feat(gf): W3 the launch collides with the ship and the buoys (`boat_test` 28).** W2's launch drove through the tanker and
+  the channel marks, which was honest to write down but no way to test ship physics. The hull now tests the map's own boxes --
+  the tanker's sides, the buoys, the ladder -- with three samples down her centreline (stern, midships, bow), each a disc of
+  half-beam radius (4.2) inside the boat's slice of height, against the same box data the players collide with; the parity path
+  is still untouched. A blocked bow slides along the obstacle when one axis is free, loses half her way, and bumps
+  (speed x -0.3) when both are; the sea edge still bounces her. `wb-place!` takes a heading now, which is what let the test aim
+  her at the ship: full ahead from (250, 250) on 0 degrees stops her at z 58.2 against the starboard side at 45, and the buoy
+  at (160, 160) stops her at 173.2, both the predicted bow-plus-beam distances. Not done: boat-vs-boat, and the hull test is
+  three discs on a line, not a true oriented box -- fine for a 9-unit half-length at this speed, wrong for a longship.
+
 - **feat(gf): W2 the launch, the first vehicle body in GF (`boat_test` 21).** `gf/modes/construct/boats.prn`: one boat on the
   tanker's water, riding the same wave function as the swimmer (a lerp toward the surface at its own x/z), with momentum
   (thrust against drag, 1.6 units a tick ahead, 0.7 astern), a helm that only bites with way on -- stopped, it does not pivot --

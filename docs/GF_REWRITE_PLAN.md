@@ -361,11 +361,16 @@ legacy **Oil Tanker** scene (`server/system/portal.go` `SceneOilTanker`), reache
 - **W2 Boat bodies.** One drivable launch on the same water (`gf/modes/construct/boats.prn`): buoyancy to the wave
   height, momentum (thrust against drag, capped), helm that only bites with way on, reverse at half speed, the rider's own
   command words (w/s/a/d), jump-to-board / crouch-to-step-off, a foam wake and its own HUD line -- the first place
-  `in_vehicle` becomes an entity in GF (460 had only a speed class; V5 does the same for the garage pads). Named limits: the
-  launch does not collide with the ship's boxes (it is a water body with a sea-edge clamp, not a hull-vs-hull test), and the
-  tanker's bow gate only fires from the deck (y > 16) because GF puts water under a circle the legacy scene had none under.
+  `in_vehicle` becomes an entity in GF (460 had only a speed class; V5 does the same for the garage pads). The tanker's bow
+  gate only fires from the deck (y > 16) because GF puts water under a circle the legacy scene had none under.
   Done when `gf/tests/boat_test.mjs` boards, drives, turns, rides the swell, reverses, runs the sea edge, dismounts and
   confirms the rider is carried and released.
+- **W3 The launch hits things.** The boat tests the map's own boxes (the tanker's sides, the buoys, the ladder) with three
+  samples down her centreline, each a disc of half-beam radius, inside the boat's slice of height -- the same data the players
+  collide with, reached without touching the parity path. A blocked bow slides along the obstacle when one axis is free and
+  bumps otherwise, and the sea edge still bounces her. `wb-place!` now takes a heading, so a test (or a spawner) can aim her.
+  Done when `gf/tests/boat_test.mjs` drives her into the tanker's starboard side and into a channel buoy and she stops short
+  at the predicted distance, while open water stays free.
 
 ### A: packaging and distribution
 
@@ -405,7 +410,7 @@ Milestone 6, **the construct, portals and voxworld**:
 - [x] V1 (`06c7cca`) · [x] V2 (`8bed6d6`) · [x] V3 (`c3886a8`) · [ ] V4 · [ ] V5 · [ ] V6
 
 Milestone 7, **ships and water** (the tanker off the Osaka garage):
-- [x] W1 (`608cb5f`) · [x] W2 (`79a3477`)
+- [x] W1 (`608cb5f`) · [x] W2 (`79a3477`) · [ ] W3
 
 Ships to phones:
 - [ ] A1 (after Milestone 1) · [ ] M5

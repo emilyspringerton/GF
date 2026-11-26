@@ -43,20 +43,19 @@
 (defn wb-turn [] : F32 2.4)          ; degrees a tick at full speed and full helm
 (defn wb-board-r [] : F32 9.0)
 (defn wb-draft [] : F32 0.6)         ; how far the waterline sits above the hull centre
+(defn wb-beam [] : F32 4.2)          ; half-beam: the disc radius of each hull sample
 
-(defn wb-place! [(x : F32) (z : F32)] : Unit
+(defn wb-place! [(x : F32) (z : F32) (yaw : F32)] : Unit
   (do
-    (wb-f! 1 x) (wb-f! 3 z)
+    (wb-f! 1 x) (wb-f! 3 z) (wb-f! 4 yaw) (wb-f! 5 0.0)
     (wb-f! 2 (+ (ww-surface-at x z (ww-t)) (wb-draft)))))
 
 (defn wb-init! [] : Unit
   (do
     (wb-i! 0 1)
-    (wb-f! 4 90.0)          ; bows to the north (-z), out of the ship's flank
-    (wb-f! 5 0.0)
     (wb-i! 6 -1)
     (wb-i! 7 0)
-    (wb-place! (wb-home-x) (wb-home-z))))
+    (wb-place! (wb-home-x) (wb-home-z) 90.0)))   ; bows to the west, along the ship's flank
 
 ;; the rider stands on the deck: pinned each tick, so the hull carries them
 (defn wb-pin! [(r : I32) (x : F32) (z : F32)] : Unit
@@ -68,10 +67,39 @@
       (set-p-vx! r 0.0) (set-p-vy! r 0.0) (set-p-vz! r 0.0)
       (set-p-on-ground! r 1))))
 
+;; the hull against the map's boxes (the tanker's sides, the buoys, the ladder). The launch is not a point: three
+;; samples down her centreline (stern, midships, bow), each a disc of half-beam radius, against each box's footprint
+;; in the boat's own slice of height. That is enough to stop her against a hull and a buoy, and it is the same box
+;; data the players collide with -- the parity path is not involved.
+(defn wb-blocked? [(x : F32) (z : F32) (yaw : F32) (y : F32)] : Bool
+  (let [(fx : F32) (fwd-x yaw)
+        (fz : F32) (fwd-z yaw)
+        (lo : F32) (- y 1.4)
+        (hi : F32) (+ y 1.4)
+        (r : F32) (wb-beam)
+        (hit : Bool) false]
+    (dotimes [s 3]
+      (let [(d : F32) (- (* (f32 s) 7.0) 7.0)
+            (px : F32) (+ x (* fx d))
+            (pz : F32) (+ z (* fz d))]
+        (loop [i 1]
+          (when (and (< i (map-count)) (not hit))
+            (let [(hw : F32) (/ (bw i) 2.0)
+                  (hd : F32) (/ (bd i) 2.0)
+                  (top : F32) (+ (by i) (/ (bh i) 2.0))
+                  (bot : F32) (- (by i) (/ (bh i) 2.0))
+                  (dx : F32) (- px (clamp-f px (- (bx i) hw) (+ (bx i) hw)))
+                  (dz : F32) (- pz (clamp-f pz (- (bz i) hd) (+ (bz i) hd)))]
+              (when (and (<= (+ (* dx dx) (* dz dz)) (* r r)) (< lo top) (> hi bot))
+                (set! hit true)))
+            (recur (+ i 1))))))
+    hit))
+
 ;; the hull rides the swell under it and keeps its speed through a turn
 (defn wb-step! [] : Unit
   (when (!= (wb-active) 0)
     (let [(x : F32) (wb-x) (z : F32) (wb-z)
+          (y : F32) (wb-y)
           (t : F32) (ww-t)
           (r : I32) (wb-rider)
           (helm : Bool) (and (>= r 0) (alive? r))
@@ -80,21 +108,31 @@
           (sp : F32) (clamp-f (+ (* (wb-speed) (wb-drag)) (* thr (wb-accel))) (- 0.0 (wb-reverse)) (wb-max-speed))
           (turn : F32) (* str (* (wb-turn) (/ sp (wb-max-speed))))
           (yaw : F32) (norm-yaw (- (wb-yaw) turn))
-          (nx : F32) (+ x (* (fwd-x yaw) sp))
-          (nz : F32) (+ z (* (fwd-z yaw) sp))
           (lim : F32) (- (ww-bounds) 12.0)
-          (bx : F32) (clamp-f nx (- 0.0 lim) lim)
-          (bz : F32) (clamp-f nz (- 0.0 lim) lim)
-          (hit : Bool) (or (!= bx nx) (!= bz nz))]
+          (raw-x : F32) (+ x (* (fwd-x yaw) sp))
+          (raw-z : F32) (+ z (* (fwd-z yaw) sp))
+          (nx : F32) (clamp-f raw-x (- 0.0 lim) lim)
+          (nz : F32) (clamp-f raw-z (- 0.0 lim) lim)
+          (edge : Bool) (or (!= nx raw-x) (!= nz raw-z))
+          (px : F32) x
+          (pz : F32) z
+          (nsp : F32) sp]
       (do
-        (wb-f! 5 (if hit (* sp (- 0.0 0.4)) sp))
+        ;; a blocked bow slides along the obstacle if one axis is free, otherwise she bumps and loses her way
+        (cond
+          (not (wb-blocked? nx nz yaw y)) (do (set! px nx) (set! pz nz))
+          (not (wb-blocked? nx z yaw y)) (do (set! px nx) (set! nsp (* sp 0.55)))
+          (not (wb-blocked? x nz yaw y)) (do (set! pz nz) (set! nsp (* sp 0.55)))
+          :else (set! nsp (* sp (- 0.0 0.3))))
+        (when edge (set! nsp (* nsp (- 0.0 0.4))))
+        (wb-f! 5 nsp)
         (wb-f! 4 yaw)
-        (wb-f! 1 bx) (wb-f! 3 bz)
-        (wb-f! 2 (lerp (wb-y) (+ (ww-surface-at bx bz t) (wb-draft)) 0.3))
-        (when (and (> (fabs sp) 0.35) (> (- (gi (g-tick)) (wb-i 7)) 6))
+        (wb-f! 1 px) (wb-f! 3 pz)
+        (wb-f! 2 (lerp y (+ (ww-surface-at px pz t) (wb-draft)) 0.3))
+        (when (and (> (fabs nsp) 0.35) (> (- (gi (g-tick)) (wb-i 7)) 6))
           (do (wb-i! 7 (gi (g-tick)))
-              (fx-sparks! bx (ww-surface-at bx bz t) bz 3 2)))
-        (when helm (wb-pin! r bx bz))))))
+              (fx-sparks! px (ww-surface-at px pz t) pz 3 2)))
+        (when helm (wb-pin! r px pz))))))
 
 ;; is the player beside the hull (and at deck height)?
 (defn wb-near? [(p : I32)] : Bool
