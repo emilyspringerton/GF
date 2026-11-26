@@ -1,5 +1,12 @@
 ## 2026-11-26
 
+- **G1: one unified build.** New `gf/gf.modules` links the 460 engine once, with SURVIVAL beside it and `gf/modes/router.prn` owning
+  the engine's 14 `mod-*` hooks; `scripts/gf_build.sh gf/gf.modules` builds `gf.wasm` (233 KB, 0 imports, fixed 8 MB) and
+  `scripts/gf_test.sh` now runs the SURVIVAL suite against it (31/31). SURVIVAL's hook implementations are renamed `sv-mod-*` so the
+  router can own the contract names. The arena parity build is unchanged (40/40 scenarios, 73 engine checks, soak ok). The router is
+  a pass-through for now: SURVIVAL is the only mode in the build; G2 adds the mode switch and the arena default. Not tested on a
+  device; this is headless wasm only. (session: freebuff-20261126)
+
 - **GF: the rewrite starts from release 460** (founder: "start with shankpit 460 and add features from there ... lets get the menu
   system survival mode queue mode and engine stuff figured out first ... set up like gary's mod ... like goat simulator").
   `garyredg/SPGF` was pushed, with its full history, to `emilyspringerton/GF` (plus the `460` tag). New:
