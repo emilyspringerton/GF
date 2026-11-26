@@ -26,6 +26,7 @@ gf/modes/survival/sv_mod.prn
 gf/modes/portals.prn
 gf/modes/construct/garage.prn
 gf/modes/construct/voxworld.prn
+gf/modes/construct/construct.prn
 gf/modes/router.prn
 gf/modes/modes.prn
 gf/engine/sp_main.prn

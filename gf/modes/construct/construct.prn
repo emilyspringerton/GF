@@ -1,0 +1,173 @@
+;; gf/modes/construct/construct.prn -- CONSTRUCT: a stream's own voxworld, one bot per viewer (V3).
+;;
+;; Founder, 2026-11-26: "we need the construct set up such that if we are oauthed into TWITCH via IDUNA
+;; and WOTAN then we can have a stream powered construct where it spawns in bots for every viewer in my
+;; stream". This is the game side of that: a mode that loads the Osaka garage (V1), walks its portal ring
+;; (gf/modes/portals.prn) into the voxworld (V2), and seats a bot for every viewer the host reports.
+;;
+;; The host owns the Twitch side. IDUNA already signs a person in (packages/iduna_login/iduna_login.h
+;; offers Twitch among its providers) and the broadcast feed already leaves the game through
+;; packages/render/stream_out.h; neither is wired to this mode by this file. What the host does is call
+;; gf_viewer_set(n) whenever the viewer count changes -- n is the number of people watching, whatever the
+;; chat/EventSub client says. Everything after that is the game's: which slots, where they stand, and what
+;; happens when a viewer leaves. See docs/QUESTIONS.md for the credentials and the WOTAN ingest endpoint,
+;; which are the founder's to give.
+;;
+;; Limits, named: the engine has 7 free slots beside the local player (max-players 10, slot 0 local, 1..9
+;; used by SURVIVAL's zombies; the construct uses 1..7), so more than seven viewers wait. Bot names are
+;; VIEWER 1..7: the wire carries no handles into PARENA yet, so a chat name on screen needs the host name
+;; table (V6). There is no scoring/overlay for the stream yet either -- the engine HUD is the 460 one.
+;;
+;; Memory: G words 760..779 (plan §9) and the construct colour block at 0x083000 (not used yet: boxes take
+;; the engine's own palette).
+
+(defn g-cg-scene [] : I32 760)      ; g-map-id of the loaded construct scene (4 garage, 5 voxworld)
+(defn g-cg-on [] : I32 761)         ; 1 while the construct session is running
+(defn g-cg-viewers [] : I32 762)    ; what the host last reported
+(defn g-cg-bots [] : I32 763)       ; bots seated this tick
+(defn g-cg-portal [] : I32 764)     ; last portal taken (-1 none)
+(defn g-cg-note-t [] : I32 765)     ; ticks left on the "N VIEWERS" note
+(defn g-cg-r0 [] : I32 766)
+(defn g-cg-r1 [] : I32 767)
+
+(defn cg-max-bots [] : I32 7)
+(defn cg-colour-base [] : I32 536576)   ; 0x083000, 128 x I32 (V3 reserves it; no colours yet)
+
+;; the most viewers that can be in the world at once
+(defn cg-seats [(viewers : I32)] : I32 (clamp-i viewers 0 (cg-max-bots)))
+(defn cg-waiting [(viewers : I32)] : I32 (- (clamp-i viewers 0 64) (cg-seats viewers)))
+
+(defn cg-bot-name [(b : I32)] : String
+  (case b 0 "VIEWER 1" 1 "VIEWER 2" 2 "VIEWER 3" 3 "VIEWER 4" 4 "VIEWER 5" 5 "VIEWER 6" 6 "VIEWER 7" "VIEWER"))
+
+(defn cg-scene-bounds [] : F32 (if (= (gi (g-cg-scene)) 4) (garage-bounds) (vx-bounds)))
+
+;; ---- bots -------------------------------------------------------------------------------------------------
+;; A viewer takes a free slot; a viewer who leaves frees it. Death is the engine's (mod-respawn? is true),
+;; so a bot that dies comes back on a voxworld spawn and stays that viewer's body for the session.
+(defn cg-despawn-bots! [] : Unit
+  (do
+    (dotimes [b (cg-max-bots)]
+      (let [slot (+ b 1)]
+        (when (!= (p-is-bot slot) 0)
+          (do (set-p-active! slot 0) (set-p-is-bot! slot 0)))))
+    (gi! (g-cg-bots) 0)))
+
+(defn cg-spawn-bot! [(b : I32)] : Unit
+  (let [slot (+ b 1)
+        (s : I32) (mod b (spawn-count))]
+    (set-p-is-bot! slot 1)
+    (respawn-at! slot (spawn-x s) (spawn-y s) (spawn-z s))
+    (set-p-spawn-prot! slot 0)
+    (bot-init! slot 2)
+    (put-name! slot (cg-bot-name b))))
+
+(defn cg-sync-bots! [] : Unit
+  (let [want (cg-seats (gi (g-cg-viewers)))]
+    (if (!= (gi (g-cg-scene)) 5)
+        (cg-despawn-bots!)
+        (do
+          (dotimes [b want]
+            (when (= (p-active (+ b 1)) 0) (cg-spawn-bot! b)))
+          (loop [b want]
+            (when (< b (cg-max-bots))
+              (let [slot (+ b 1)]
+                (when (!= (p-is-bot slot) 0)
+                  (do (set-p-active! slot 0) (set-p-is-bot! slot 0))))
+              (recur (+ b 1))))
+          (gi! (g-cg-bots) want)))))
+
+;; ---- scenes ------------------------------------------------------------------------------------------------
+(defn cg-load-scene! [(scene : I32)] : Unit
+  (do
+    (cg-despawn-bots!)
+    (clear-world!)
+    (if (= scene 4) (garage-init!) (voxworld-init!))
+    (gi! (g-map-id) scene)
+    (gi! (g-cg-scene) scene)
+    (gi! (g-mode) 0)
+    (gi! (g-me) 0)
+    (gi! (g-view-slot) 0)
+    (gi! (g-countdown) 0)
+    (respawn-at! 0 (spawn-x 0) (spawn-y 0) (spawn-z 0))
+    (set-p-spawn-prot! 0 0)
+    (set-p-yaw! 0 0.0)
+    (set-p-pitch! 0 0.0)
+    (name-local! 0)
+    (gf! (g-cam-yaw) 0.0)
+    (gf! (g-cam-pitch) 0.0)))
+
+;; entering the voxworld portal: the legacy landing point from the garage (portal.go)
+(defn cg-enter-voxworld! [] : Unit
+  (do
+    (cg-load-scene! 5)
+    (respawn-at! 0 -420.0 8.0 180.0)
+    (set-p-spawn-prot! 0 0)
+    (set-p-yaw! 0 0.0)
+    (gi! (g-cg-portal) 3)
+    (cg-sync-bots!)))
+
+;; the voxworld end of the ring. The legacy table sends it to the stadium; GF has no stadium scene, and
+;; CONSTRUCT's hub is the garage, so this is the construct's return link (named, not hidden).
+(defn cg-leave-voxworld! [] : Unit
+  (do
+    (cg-load-scene! 4)
+    (respawn-at! 0 0.0 6.0 46.0)
+    (set-p-spawn-prot! 0 0)
+    (gi! (g-cg-portal) 2)))
+
+;; ---- the session -------------------------------------------------------------------------------------------
+(defn cg-start! [] : Unit
+  (do
+    (cg-load-scene! 4)
+    (gi! (g-cg-on) 1)
+    (gi! (g-tick) 0)
+    (gi! (g-kill-limit) 1000000)
+    (gi! (g-match-total) 1000000000)
+    (gi! (g-match-left) 1000000000)
+    (gi! (g-winner) -1)
+    (gi! (g-end-reason) 0)
+    (gi! (g-death-cam) 0)
+    (gi! (g-streak) 0)
+    (gi! (g-feed-head) 0)
+    (zero-words! (feed-base) 32)
+    (gi! (g-match-no) (+ (gi (g-match-no)) 1))
+    (gi! (g-cg-portal) -1)
+    (gi! (g-cg-note-t) 0)
+    (gi! (g-phase) 1)
+    (gi! (g-ui-t) 0)
+    (gi! (g-paused) 0)
+    (gi! (g-q-state) 0)
+    (gi! (g-want-queue) 0)
+    (snd-ui! 15)))
+
+;; ---- the host's seam -----------------------------------------------------------------------------------------
+(defn gf-viewer-count [] : I32 (gi (g-cg-viewers)))
+(defn gf-viewer-set [(n : I32)] : Unit
+  (do (gi! (g-cg-viewers) (clamp-i n 0 64))
+      (when (= (gi (g-cg-on)) 1) (cg-sync-bots!))))
+(defn gf-viewer-waiting [] : I32 (cg-waiting (gi (g-cg-viewers))))
+(defn gf-construct-scene [] : I32 (gi (g-cg-scene)))
+(defn gf-construct-bots [] : I32 (gi (g-cg-bots)))
+
+;; ---- the hooks (contract: gf/engine/sp_mods.prn; routed by gf/modes/router.prn) ------------------------------
+(defn cg-mod-init! [] : Unit (do (gi! (g-cg-on) 0) (cg-load-scene! 4)))
+(defn cg-mod-active? [] : Bool (and (!= (gi (g-cg-on)) 0) (= (gi (g-mode)) 0)))
+
+(defn cg-mod-begin! [] : Bool (do (cg-start!) true))
+
+(defn cg-at-vox-portal? [] : Bool
+  (let [(dx : F32) (- (p-x 0) (vx-portal-x))
+        (dz : F32) (- (p-z 0) (vx-portal-z))
+        (r : F32) (vx-portal-r)]
+    (<= (+ (* dx dx) (* dz dz)) (* r r))))
+
+(defn cg-mod-tick! [] : Unit
+  (when (and (= (gi (g-cg-on)) 1) (= (gi (g-phase)) 1))
+    (do
+      (if (= (gi (g-cg-scene)) 4)
+          (when (= (portal-at 4 (p-x 0) (p-z 0)) 3) (cg-enter-voxworld!))
+          (when (cg-at-vox-portal?) (cg-leave-voxworld!)))
+      (when (> (gi (g-cg-note-t)) 0) (gi! (g-cg-note-t) (- (gi (g-cg-note-t)) 1))))))
+
+(defn cg-mod-bounds [] : F32 (cg-scene-bounds))

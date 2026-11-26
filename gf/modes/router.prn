@@ -12,12 +12,12 @@
 ;;
 ;; The signatures here must keep matching sp_mods.prn (the contract, with every call site named there).
 
-(defn g-gf-mode [] : I32 640)   ; G 640: 0 arena, 1 survival, 2 playground, 3 queue (docs/GF_REWRITE_PLAN.md §9)
+(defn g-gf-mode [] : I32 640)   ; G 640: 0 arena, 1 survival, 2 playground, 3 queue, 4 construct (plan §9)
 (defn gf-mode [] : I32 (gi (g-gf-mode)))
 
 ;; the host, the menu and the tests switch modes through this; it is a reset to that mode's title screen.
 (defn gf-mode-set [(m : I32)] : Unit
-  (let [m (clamp-i m 0 3)]
+  (let [m (clamp-i m 0 4)]
     (do
       (gi! (g-gf-mode) m)
       (gi! (g-phase) 0)
@@ -26,22 +26,24 @@
       (gi! (g-want-queue) 0)
       (gi! (g-q-state) 0)
       (clear-world!)
-      (if (= m 1)
-          (sv-mod-init!)
-          (do (gi! (g-map-id) 0) (init-map!) (gi! (g-mode) 0))))))
+      (cond
+        (= m 1) (sv-mod-init!)
+        (= m 4) (cg-mod-init!)
+        :else (do (gi! (g-map-id) 0) (init-map!) (gi! (g-mode) 0))))))
 
-;; the only routed mode in the build today
+;; the routed modes in the build today
 (defn gf-survival? [] : Bool (= (gi (g-gf-mode)) 1))
+(defn gf-construct? [] : Bool (= (gi (g-gf-mode)) 4))
 
 ;; ---- the 14 hooks (contract: gf/engine/sp_mods.prn) ---------------------------------------------------------------
-(defn mod-init! [] : Unit (when (gf-survival?) (sv-mod-init!)))
-(defn mod-active? [] : Bool (and (gf-survival?) (sv-mod-active?)))
-(defn mod-begin! [] : Bool (if (gf-survival?) (sv-mod-begin!) false))
-(defn mod-tick! [] : Unit (when (gf-survival?) (sv-mod-tick!)))
+(defn mod-init! [] : Unit (cond (gf-survival?) (sv-mod-init!) (gf-construct?) (cg-mod-init!) :else unit))
+(defn mod-active? [] : Bool (if (gf-survival?) (sv-mod-active?) false))
+(defn mod-begin! [] : Bool (cond (gf-survival?) (sv-mod-begin!) (gf-construct?) (cg-mod-begin!) :else false))
+(defn mod-tick! [] : Unit (cond (gf-survival?) (sv-mod-tick!) (gf-construct?) (cg-mod-tick!) :else unit))
 (defn mod-bot-think! [(p : I32)] : Bool (if (gf-survival?) (sv-mod-bot-think! p) false))
 (defn mod-respawn? [(p : I32)] : Bool (if (gf-survival?) (sv-mod-respawn? p) true))
 (defn mod-weapon-ok? [(p : I32) (w : I32)] : Bool (if (gf-survival?) (sv-mod-weapon-ok? p w) true))
-(defn mod-bounds [] : F32 (if (gf-survival?) (sv-mod-bounds) 420.0))
+(defn mod-bounds [] : F32 (cond (gf-survival?) (sv-mod-bounds) (gf-construct?) (cg-mod-bounds) :else 420.0))
 (defn mod-hitscan! [(p : I32) (ox : F32) (oy : F32) (oz : F32) (dx : F32) (dy : F32) (dz : F32)] : Unit
   (when (gf-survival?) (sv-mod-hitscan! p ox oy oz dx dy dz)))
 (defn mod-box-color [(i : I32)] : I32 (if (gf-survival?) (sv-mod-box-color i) -1))

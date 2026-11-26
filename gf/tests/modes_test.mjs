@@ -12,7 +12,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS: ' : 'FAIL: '
 
 const fields = {};
 for (const m of fs.readFileSync(path.join(here, '../engine/sp_fields.prn'), 'utf8').matchAll(/\(defn k-([a-z0-9-]+) \[\] : I32 (\d+)\)/g)) fields[m[1]] = +m[2];
-const G = { mode: 3, phase: 16, wantQueue: 77, svOn: 600, owned: 604 };
+const G = { mode: 3, phase: 16, wantQueue: 77, boxN: 127, mapId: 108, svOn: 600, owned: 604 };
 
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), {});
 const x = instance.exports;
@@ -26,17 +26,17 @@ const desc = (i) => str(x.gf_mode_desc(i));
 
 // ---- the table ---------------------------------------------------------------------------------------------------------------
 const n = x.gf_mode_count();
-ok(n === 3, `the registry has three modes (${n})`);
+ok(n === 4, `the registry has four modes (${n})`);
 const ids = [...Array(n).keys()].map((i) => x.gf_mode_id(i));
-ok(JSON.stringify(ids) === '[0,1,3]', `their ids are the router's: arena 0, survival 1, queue 3 (${ids.join(', ')})`);
+ok(JSON.stringify(ids) === '[0,1,3,4]', `their ids are the router's: arena 0, survival 1, queue 3, construct 4 (${ids.join(', ')})`);
 ok(new Set(ids).size === n, 'no two rows share an id');
 const names = [...Array(n).keys()].map(name);
 ok(names.every((s) => s.length > 0) && new Set(names).size === n, `every mode has its own name (${names.join(', ')})`);
 const descs = [...Array(n).keys()].map(desc);
 ok(descs.every((s) => s.length >= 12), 'every mode has a one-line description');
 const net = [...Array(n).keys()].map((i) => x.gf_mode_needs_net(i));
-ok(net.every((v) => v === 0 || v === 1) && net[2] === 1 && net[0] === 0 && net[1] === 0,
-  `only QUEUE needs the network (${net.join(', ')})`);
+ok(net.every((v) => v === 0 || v === 1) && net[2] === 1 && net[3] === 1 && net[0] === 0 && net[1] === 0,
+  `QUEUE and CONSTRUCT need the network (a match, a stream); the offline modes do not (${net.join(', ')})`);
 
 // ---- the registry is the only place the names live ---------------------------------------------------------------------------
 {
@@ -76,6 +76,11 @@ ok(net.every((v) => v === 0 || v === 1) && net[2] === 1 && net[0] === 0 && net[1
   ok(gi(G.phase) === 1 && x.gf_mode() === 3 && gi(G.wantQueue) === 1,
     'row 2 (QUEUE) starts a bot match and opens the matchmaking search');
   ok(gi(G.mode) === 0, 'queue is the arena game on the wire (g-mode 0)');
+
+  x.gf_mode_start(3);
+  ok(gi(G.phase) === 1 && x.gf_mode() === 4 && gi(G.mapId) === 4 && gi(G.boxN) === 18,
+    'row 3 (CONSTRUCT) starts in the garage');
+  ok(gi(G.wantQueue) === 0, 'and does not ask for a matchmaking socket');
 
   x.gf_mode_start(0);
   ok(gi(G.phase) === 1 && x.gf_mode() === 0 && gi(G.mode) === 0, 'and row 0 works again after both');
